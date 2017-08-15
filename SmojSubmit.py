@@ -159,7 +159,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             for item in result:
                 for i in range(0, 4):
                     max_len[i] = max(max_len[i], len(item[i])+2)
-            fix  = [0, 0, 2, 3]
+            fix  = [0, 0, 3, 3]
             head = ['Result', 'Score', 'Time', 'Memory']
             for i in range(0, 4):
                 head[i] = head[i].center(max_len[i] + fix[i])
@@ -181,7 +181,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             self.write_line(tab, '| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
             self.write_line(tab, '|%s|%s|%s|%s|' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
             for item in result:
-                self.write_line(tab, '| %s | %-3s | %s s | %s KB |' % (item[0], item[1], item[2], item[3]))
+                self.write_line(tab, '| %s | %-3s | %s ms | %s KB |' % (item[0], item[1], item[2], item[3]))
             self.write_line(tab, '-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
 
         def run(self):
