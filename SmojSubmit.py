@@ -8,11 +8,25 @@ _cm2_re = re.compile(r'(\s*)//(\s*)(freopen\("([^.])+\.(in|out)"( ?), "(r|w)", s
 _res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
 _isw_re = re.compile(r'<td><a href="showproblem\?id=\d{4,}">\d{4,}</a></td>\s*<td>([a-zA-Z ]*)</td>')
 
-headers ={'User-Agent': r'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.75 Safari/537.36', 'Accept': 'application/json, text/javascript, */*; q=0.01'}
+headers ={'User-Agent': r'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.75 Safari/537.36'}
 rot_url = 'http://smoj.nhedu.net'
 pst_url = 'http://smoj.nhedu.net/submit_problem?pid=%d'
 res_url = 'http://smoj.nhedu.net/allmysubmits'
 det_url = 'http://smoj.nhedu.net/showresult'
+
+result_link = {
+    'Accept': 'Accepted',
+    'Wrong_Answer': 'Wrong Answer',
+    'compile_error': 'Compile Error',
+    'monitor_time_limit_exceeded9(超时)': 'Time Limit Exceeded',
+    'monitor_segment_error(段错误,爆内存或爆栈?)': 'Runtime Error',
+    'monitor_file_name_error(你的文件名出错了?)': 'File Name Error',
+    'monitor_memory_limit_exceeded': 'Memort Limit Exceeded'
+}
+
+class SmojSubmitInsertHelperCommand(sublime_plugin.TextCommand):
+    def run(self, edit, st):
+        self.view.insert(edit, self.view.size(), st)
 
 class SmojSubmitCommand(sublime_plugin.TextCommand):
     def __init__(self, view):
@@ -29,10 +43,10 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
 
     def post(self, cpp, problem, edit):
         sublime.status_message('Posting to SMOJ...')
-        result_thread = self.ResultThreading(self.opener, self.view, edit)
-        result_thread.start()
-    #    thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
-    #    thread.start()
+        result_thread = self.ResultThreading(self.opener, self.view)
+    #    result_thread.start()
+        thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
+        thread.start()
 
     def login(self, username, password):
         sublime.status_message('Logining to SMOJ...')
@@ -116,10 +130,9 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
                 self.result  = False
 
     class ResultThreading(threading.Thread):
-        def __init__(self, opener, view, edit):
+        def __init__(self, opener, view):
             self.opener  = opener
             self.view    = view
-            self.edit    = edit
             self.result  = None
             threading.Thread.__init__(self)
 
@@ -127,15 +140,22 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             return self.view.window().new_file()
 
         def write_line(self, view, st):
-            view.run_command("insert", {"characters": st+'\n'})
+            view.run_command('smoj_submit_insert_helper', {'st':st+'\n'})
+        #    view.run_command("insert", {"characters": st+'\n'})
 
-        def printer(self, result):
+        def getName(self, st):
+            try:
+                return result_link[st]
+            except:
+                return st
+
+        def printer(self, result, score, compile_info=None):
             temp = result.split(';')
             result = []
             for item in temp:
                 result.append(item.split(':'))
             result = result[:-1]
-            max_len = [0,0,0,0]
+            max_len = [6, 5, 4, 6]
             for item in result:
                 for i in range(0, 4):
                     max_len[i] = max(max_len[i], len(item[i])+2)
@@ -144,21 +164,29 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             for i in range(0, 4):
                 head[i] = head[i].center(max_len[i] + fix[i])
             for item in result:
+                item[0] = self.getName(item[0])
                 item[0] = item[0].center(max_len[0])
                 item[1] = item[1].rjust (max_len[1])
+                item[2] = item[2].replace('不可用', 'NaN')
                 item[2] = item[2].rjust (max_len[2])
+                item[3] = item[3].replace('不可用', 'NaN')
                 item[3] = item[3].rjust (max_len[3])
             tab = self.new_file()
-            self.write_line(tab, 'Result')
+            if compile_info:
+                self.write_line(tab, 'Compile INFO :')
+                self.write_line(tab, compile_info.replace('\r', '\n'))
+                self.write_line(tab, '')
+            self.write_line(tab, 'Result        -> %s <-' % score)
             self.write_line(tab, '-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
             self.write_line(tab, '| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
             self.write_line(tab, '|%s|%s|%s|%s|' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
             for item in result:
                 self.write_line(tab, '| %s | %-3s | %s s | %s KB |' % (item[0], item[1], item[2], item[3]))
+            self.write_line(tab, '-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
 
         def run(self):
-            sublime.status_message('Waiting for judging...')
             while True:
+                sublime.status_message('Waiting for judging...')
                 r = urllib.request.Request(url=res_url, headers=headers)
                 response = self.opener.open(r)
                 tmp = response.read()
@@ -175,15 +203,20 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             name    = m.group(1)
             problem = m.group(2)
             stamp   = m.group(3)
-            result  = m.group(4)
+            score   = m.group(4)
             #print(name, problem, stamp)
             values = {'submitTime':stamp, 'pid':problem, 'user': name}
             r = urllib.request.Request(url=det_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
             response = self.opener.open(r)
             result = json.loads(response.read().decode())
-            print(result)
+        #    print(result)
             if result['result'] == 'OI_MODE':
                 sublime.status_message('This is an OI-MODE problem')
                 self.result = True
                 return None
-            self.printer(result['result'].replace('\n', ''))
+            compile_info = None
+            try:
+                compile_info = result['compileInfo'][0]
+            except:
+                pass
+            self.printer(result['result'].replace('\n', ''), score, compile_info)
