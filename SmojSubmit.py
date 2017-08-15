@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import sublime, sublime_plugin
 import re, urllib.request, urllib.parse, http.cookiejar, threading, json, time
 
@@ -21,7 +23,10 @@ result_link = {
     'monitor_time_limit_exceeded9(超时)': 'Time Limit Exceeded',
     'monitor_segment_error(段错误,爆内存或爆栈?)': 'Runtime Error',
     'monitor_file_name_error(你的文件名出错了?)': 'File Name Error',
-    'monitor_memory_limit_exceeded': 'Memort Limit Exceeded'
+    'monitor_memory_limit_exceeded': 'Memory Limit Exceeded',
+    'monitor_SIGFPE_error(算术运算错误,除数是0?浮点运算出错？溢出？)': 'SIGFPE Error',
+    'monitor_time_limit_exceeded14(超时,没用文件操作或者你的程序崩溃)': 'Output Limit Exceeded'
+    # monitor_invalid_syscall_id 
 }
 
 class SmojSubmitInsertHelperCommand(sublime_plugin.TextCommand):
@@ -145,6 +150,8 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
 
         def getName(self, st):
             try:
+                if len(st) >= 26 and st[:26] == 'monitor_invalid_syscall_id':
+                    return 'Restrict Function'
                 return result_link[st]
             except:
                 return st
@@ -157,6 +164,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             result = result[:-1]
             max_len = [6, 5, 4, 6]
             for item in result:
+                item[0] = self.getName(item[0])
                 for i in range(0, 4):
                     max_len[i] = max(max_len[i], len(item[i])+2)
             fix  = [0, 0, 3, 3]
@@ -164,7 +172,6 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             for i in range(0, 4):
                 head[i] = head[i].center(max_len[i] + fix[i])
             for item in result:
-                item[0] = self.getName(item[0])
                 item[0] = item[0].center(max_len[0])
                 item[1] = item[1].rjust (max_len[1])
                 item[2] = item[2].replace('不可用', 'NaN')
