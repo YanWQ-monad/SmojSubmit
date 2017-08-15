@@ -36,11 +36,22 @@ class SmojSubmitInsertHelperCommand(sublime_plugin.TextCommand):
 class SmojSubmitCommand(sublime_plugin.TextCommand):
     def __init__(self, view):
         self.Login = False
+        if not self.legalFileName(view.file_name()):
+            return None
         config = sublime.load_settings('SmojSubmit.sublime-settings')
         username = config.get('username')
         password = config.get('password')
         self.opener = self.login(username, password)
         sublime_plugin.TextCommand.__init__(self, view)
+
+    def legalFileName(self, name):
+        if name is None:
+            return True
+        if len(name) < 4:
+            return False
+        if name[-4:] in ('.cpp'):
+            return True
+        return False
 
     def is_enabled(self):
         return self.Login

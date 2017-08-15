@@ -38,7 +38,7 @@ Q: Why I can not click on `Submit to SMOJ`?
 A: You need to make sure you are editing in a cpp file and your username and password is right.
 
 Q: Why it does not create a new tab to show the result?  
-A: Because you are submited an OI-MODE problem.
+A: Because you are submitted an OI-MODE problem.
 
 ### Issues
 Report it [HERE](https://github.com/YanWQ-monad/SmojSubmit/issues).
