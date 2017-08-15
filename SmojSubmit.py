@@ -78,9 +78,9 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         sublime.status_message('Posting to SMOJ...')
         print(PLUGIN_NAME + ': Submit problem %s' % problem)
         result_thread = self.ResultThreading(self.opener, self.view)
-        result_thread.start()
-    #    thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
-    #    thread.start()
+    #    result_thread.start()
+        thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
+        thread.start()
 
     def relogin(self, username, password):
         sublime.status_message('Logining to SMOJ...')
