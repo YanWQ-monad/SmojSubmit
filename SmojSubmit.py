@@ -3,6 +3,8 @@
 import sublime, sublime_plugin
 import re, urllib.request, urllib.parse, http.cookiejar, threading, json, time
 
+PLUGIN_NAME = 'SmojSubmit'
+
 _cpp_re = re.compile(r'// ?(\d{4})\.cpp')
 _fre_re = re.compile(r'freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);')
 _cm1_re = re.compile(r'/\*(\s*)((freopen(.*,.*,.*)\s*){1,2})\s*\*/')
@@ -38,10 +40,11 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         self.Login = False
         if not self.legalFileName(view.file_name()):
             return None
-        config = sublime.load_settings('SmojSubmit.sublime-settings')
-        username = config.get('username')
-        password = config.get('password')
-        self.opener = self.login(username, password)
+        setting = sublime.load_settings('SmojSubmit.sublime-settings')
+        setting.add_on_change(PLUGIN_NAME, self.reload_settings)
+        username = setting.get('username')
+        password = setting.get('password')
+        self.login(username, password)
         sublime_plugin.TextCommand.__init__(self, view)
 
     def legalFileName(self, name):
@@ -56,6 +59,15 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
     def is_enabled(self):
         return self.Login
 
+    def reload_settings(self):
+        print('SmojSubmit: Reloading settings...')
+        setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
+        setting.clear_on_change(PLUGIN_NAME)
+        setting.  add_on_change(PLUGIN_NAME, self.reload_settings)
+        username = setting.get('username')
+        password = setting.get('password')
+        self.relogin(username, password)
+
     def setOpener(self, opener):
         self.opener = opener
 
@@ -65,13 +77,19 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
     def post(self, cpp, problem, edit):
         sublime.status_message('Posting to SMOJ...')
         result_thread = self.ResultThreading(self.opener, self.view)
-    #    result_thread.start()
-        thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
+        result_thread.start()
+    #    thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
+    #    thread.start()
+
+    def relogin(self, username, password):
+        sublime.status_message('Logining to SMOJ...')
+        thread = self.LoginThreading(username, password, self.setOpener, self.setLoginFlag, True , self.opener)
         thread.start()
 
     def login(self, username, password):
+        self.Login = False
         sublime.status_message('Logining to SMOJ...')
-        thread = self.LoginThreading(username, password, self.setOpener, self.setLoginFlag)
+        thread = self.LoginThreading(username, password, self.setOpener, self.setLoginFlag, False)
         thread.start()
 
     def getProblemNum(self):
@@ -106,18 +124,29 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         self.post(content, problem, edit)
 
     class LoginThreading(threading.Thread):
-        def __init__(self, username, password, callback_opener, callback_loginf):
+        def __init__(self, username, password, callback_opener, callback_loginf, relogin, opener=None):
             self.username        = username
             self.password        = password
             self.callback_opener = callback_opener
             self.callback_loginf = callback_loginf
+            self.relogin         = relogin
+            self.opener          = opener
             self.result          = None
             threading.Thread.__init__(self)
 
         def run(self):
-            cookie  = http.cookiejar.CookieJar()
-            handler = urllib.request.HTTPCookieProcessor(cookie)
-            opener  = urllib.request.build_opener(handler)
+            if self.relogin:
+                if self.opener is None:
+                    self.result = False
+                    return None
+                opener = self.opener
+                r = urllib.request.Request(url=rot_url+'/logout', headers=headers)
+                self.callback_loginf(False)
+                response = opener.open(r)
+            else:
+                cookie  = http.cookiejar.CookieJar()
+                handler = urllib.request.HTTPCookieProcessor(cookie)
+                opener  = urllib.request.build_opener(handler)
             values  = {'redirect_to':'', 'username':self.username, 'password':self.password}
             r = urllib.request.Request(url=rot_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=headers)
             response = opener.open(r)
