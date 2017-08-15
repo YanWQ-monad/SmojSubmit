@@ -1,6 +1,6 @@
 [
     {
-    	"caption": "Submit to SMOJ",
+    	"caption": "SmojSubmit: Submit to SMOJ",
     	"command": "smoj_submit",
     	"args":{}
     }

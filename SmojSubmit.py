@@ -3,9 +3,9 @@
 import sublime, sublime_plugin
 import re, urllib.request, urllib.parse, http.cookiejar, threading, json, time
 
-_cpp_re = re.compile(r'// ?(\d{4})\.cpp'                                                           )
-_fre_re = re.compile(r'freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);'              )
-_cm1_re = re.compile(r'/\*(\s*)((freopen(.*,.*,.*)\s*){1,2})\s*\*/'                                )
+_cpp_re = re.compile(r'// ?(\d{4})\.cpp')
+_fre_re = re.compile(r'freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);')
+_cm1_re = re.compile(r'/\*(\s*)((freopen(.*,.*,.*)\s*){1,2})\s*\*/')
 _cm2_re = re.compile(r'(\s*)//(\s*)(freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);)')
 _res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
 _isw_re = re.compile(r'<td><a href="showproblem\?id=\d{4,}">\d{4,}</a></td>\s*<td>([a-zA-Z ]*)</td>')
@@ -35,16 +35,21 @@ class SmojSubmitInsertHelperCommand(sublime_plugin.TextCommand):
 
 class SmojSubmitCommand(sublime_plugin.TextCommand):
     def __init__(self, view):
-        self.Logining = False
-        self.Logined  = False
+        self.Login = False
         config = sublime.load_settings('SmojSubmit.sublime-settings')
         username = config.get('username')
         password = config.get('password')
         self.opener = self.login(username, password)
         sublime_plugin.TextCommand.__init__(self, view)
 
+    def is_enabled(self):
+        return self.Login
+
     def setOpener(self, opener):
         self.opener = opener
+
+    def setLoginFlag(self, flag):
+        self.Login = flag
 
     def post(self, cpp, problem, edit):
         sublime.status_message('Posting to SMOJ...')
@@ -55,7 +60,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
 
     def login(self, username, password):
         sublime.status_message('Logining to SMOJ...')
-        thread = self.LoginThreading(username, password, self.setOpener)
+        thread = self.LoginThreading(username, password, self.setOpener, self.setLoginFlag)
         thread.start()
 
     def getProblemNum(self):
@@ -90,11 +95,12 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         self.post(content, problem, edit)
 
     class LoginThreading(threading.Thread):
-        def __init__(self, username, password, callback):
-            self.username = username
-            self.password = password
-            self.callback = callback
-            self.result   = None
+        def __init__(self, username, password, callback_opener, callback_loginf):
+            self.username        = username
+            self.password        = password
+            self.callback_opener = callback_opener
+            self.callback_loginf = callback_loginf
+            self.result          = None
             threading.Thread.__init__(self)
 
         def run(self):
@@ -104,9 +110,14 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             values  = {'redirect_to':'', 'username':self.username, 'password':self.password}
             r = urllib.request.Request(url=rot_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=headers)
             response = opener.open(r)
-            self.callback(opener)
-            self.result = True
-            sublime.status_message('Login OK')
+            if response.read().decode().find('石中信息学奥赛勇夺全省三连冠') != -1:
+                self.callback_opener(opener)
+                self.callback_loginf(True)
+                self.result = True
+                sublime.status_message('Login OK')
+            else:
+                self.callback_loginf(False)
+                sublime.status_message('Login fail')
 
     class PostThreading(threading.Thread):
         def __init__(self, opener, cpp, problem, callback):
@@ -146,7 +157,6 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
 
         def write_line(self, view, st):
             view.run_command('smoj_submit_insert_helper', {'st':st+'\n'})
-        #    view.run_command("insert", {"characters": st+'\n'})
 
         def getName(self, st):
             try:
@@ -182,7 +192,6 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             if compile_info:
                 self.write_line(tab, 'Compile INFO :')
                 self.write_line(tab, compile_info.replace('\r', '\n'))
-                self.write_line(tab, '')
             self.write_line(tab, 'Result        -> %s <-' % score)
             self.write_line(tab, '-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
             self.write_line(tab, '| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
@@ -204,19 +213,17 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
                 m = _isw_re.search(html)
                 if m.group(1) == 'done':
                     break
-                time.sleep(0.5)
+                time.sleep(0.01)
             sublime.status_message('Loading result...')
             m = _res_re.search(html)
             name    = m.group(1)
             problem = m.group(2)
             stamp   = m.group(3)
             score   = m.group(4)
-            #print(name, problem, stamp)
             values = {'submitTime':stamp, 'pid':problem, 'user': name}
             r = urllib.request.Request(url=det_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
             response = self.opener.open(r)
             result = json.loads(response.read().decode())
-        #    print(result)
             if result['result'] == 'OI_MODE':
                 sublime.status_message('This is an OI-MODE problem')
                 self.result = True
