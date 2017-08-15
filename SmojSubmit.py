@@ -60,7 +60,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         return self.Login
 
     def reload_settings(self):
-        print('SmojSubmit: Reloading settings...')
+        print(PLUGIN_NAME + ': Reloading settings...')
         setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
         setting.clear_on_change(PLUGIN_NAME)
         setting.  add_on_change(PLUGIN_NAME, self.reload_settings)
@@ -74,12 +74,13 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
     def setLoginFlag(self, flag):
         self.Login = flag
 
-    def post(self, cpp, problem, edit):
+    def post(self, cpp, problem):
         sublime.status_message('Posting to SMOJ...')
+        print(PLUGIN_NAME + ': Submit problem %s' % problem)
         result_thread = self.ResultThreading(self.opener, self.view)
-    #    result_thread.start()
-        thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
-        thread.start()
+        result_thread.start()
+    #    thread = self.PostThreading(self.opener, cpp, problem, result_thread.start)
+    #    thread.start()
 
     def relogin(self, username, password):
         sublime.status_message('Logining to SMOJ...')
@@ -121,7 +122,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
             return None
         content = self.getContent()
         content = self.fillFreopen(content, problem)
-        self.post(content, problem, edit)
+        self.post(content, problem)
 
     class LoginThreading(threading.Thread):
         def __init__(self, username, password, callback_opener, callback_loginf, relogin, opener=None):
@@ -229,6 +230,16 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
                 item[3] = item[3].replace('不可用', 'NaN')
                 item[3] = item[3].rjust (max_len[3])
             tab = self.new_file()
+            if score.find('100/100') != -1:
+                self.write_line(tab, '                            _           _ ')
+                self.write_line(tab, '    /\\                     | |         | |')
+                self.write_line(tab, '   /  \\   ___ ___ ___ _ __ | |_ ___  __| |')
+                self.write_line(tab, '  / /\\ \\ / __/ __/ _ \\ \'_ \\| __/ _ \\/ _` |')
+                self.write_line(tab, ' / ____ \\ (_| (_|  __/ |_) | ||  __/ (_| |')
+                self.write_line(tab, '/_/    \\_\\___\\___\\___| .__/ \\__\\___|\\__,_|')
+                self.write_line(tab, '                     | |                  ')
+                self.write_line(tab, '                     |_|                  ')
+                self.write_line(tab, '')
             if compile_info:
                 self.write_line(tab, 'Compile INFO :')
                 self.write_line(tab, compile_info.replace('\r', '\n'))
