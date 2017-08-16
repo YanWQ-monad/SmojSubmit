@@ -46,7 +46,7 @@ class LoginThreading(threading.Thread):
             cookie  = http.cookiejar.CookieJar()
             handler = urllib.request.HTTPCookieProcessor(cookie)
             opener  = urllib.request.build_opener(handler)
-        sublime.status_message('Logging in to config...')
+        sublime.status_message('Logging in...')
         values  = {'redirect_to':'', 'username':self.username, 'password':self.password}
         r = urllib.request.Request(url=config.root_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=common.headers)
         response = opener.open(r)

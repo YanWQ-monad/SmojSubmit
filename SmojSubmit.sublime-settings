@@ -1,4 +1,7 @@
 {
-	"username": "",
-	"password": ""
+	"smoj": {
+		"enable": false,
+		"username": "",
+		"password": ""
+	}
 }
