@@ -2,16 +2,6 @@
 A sublime plugin to submit code to [SMOJ](http://smoj.nhedu.net).
   
 ### Installation
->If you did not install `Package Control`, You must install it through the following steps:
->1. Open `Command Palette` using menu item `Tools → Command Palette...`
->2. Choose`Install Package Control`
->3. Wait for the installation is complete
->If you did not find `Install Package Control`, please press`Ctrl`+`` `, paste these codes:
->```
->import urllib.request,os,hashlib; h = 'df21e130d211cfc94d9b0905775a7c0f' + '1e3d39e33b79698005270310898eea76'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)
->```
->Then hit `Enter` and wait for the installation is complete.
-
 1. Open `Command Palette` using menu item `Tools → Command Palette...`
 2. Choose `Package Control: Add Repository`
 3. Type in `https://github.com/YanWQ-monad/SmojSubmit` and hit `Enter`
