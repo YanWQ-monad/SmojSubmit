@@ -1,6 +1,6 @@
 {
 	"name": "SmojSubmit",
-	"version": "2.5.0",
+	"version": "2.5.1",
 	"description": "A sublime plugin to submit code to SMOJ",
 	"details": "https://github.com/YanWQ-monad/SmojSubmit",
 	"author": "YanWQ-monad",

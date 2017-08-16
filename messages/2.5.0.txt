@@ -1,4 +1,4 @@
-SmojSubmit v2.4.1 Changelog:
+SmojSubmit v2.5.0 Changelog:
 
 **NOTE:** Restarting Sublime Text may required after upgrading.
 
