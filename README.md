@@ -1,6 +1,8 @@
 # SmojSubmit
 一个可以在[SMOJ](http://smoj.nhedu.net)上提交题目的Sublime Text插件。
-  
+
+![演示](https://raw.githubusercontent.com/YanWQ-monad/monad/master/Material/SmojSubmitStatic/Illustration.gif)
+
 ### 安装
 >如果你没有安装`Package Control`，你需要通过以下操作安装：  
 >1. 使用`Tools → Command Palette...`打开`Command Palette`；
