@@ -6,8 +6,7 @@ import re
 
 from .SMOJ import login, result, post, config
 from . import common
-
-PLUGIN_NAME = 'SmojSubmit'
+from . import log
 
 _cpp_re = re.compile(r'// ?(\d{4})\.cpp')
 _fre_re = re.compile(r'freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);')
@@ -22,7 +21,8 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         setting = sublime.load_settings('SmojSubmit.sublime-settings')
         if not setting.get('smoj').get('enable'):
             return None
-        setting.add_on_change(PLUGIN_NAME, self.reload_settings)
+        log.info('Load SMOJ plugin')
+        setting.add_on_change(common.PLUGIN_NAME, self.reload_settings)
         setting  = setting.get('smoj')
         username = setting.get('username')
         password = setting.get('password')
@@ -42,12 +42,12 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         return self.Login
 
     def reload_settings(self):
-        print(PLUGIN_NAME + ': Reloading settings...')
-        setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
-        setting.clear_on_change(PLUGIN_NAME)
+        log.info('Reloading settings...')
+        setting = sublime.load_settings(common.PLUGIN_NAME + '.sublime-settings')
+        setting.clear_on_change(common.PLUGIN_NAME)
         if not setting.get('smoj').get('enable'):
             return None
-        setting.  add_on_change(PLUGIN_NAME, self.reload_settings)
+        setting.add_on_change(common.PLUGIN_NAME, self.reload_settings)
         setting  = setting.get('smoj')
         username = setting.get('username')
         password = setting.get('password')
@@ -60,8 +60,6 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         self.Login = flag
 
     def post(self, cpp, problem):
-        sublime.status_message('Posting to SMOJ...')
-        print(PLUGIN_NAME + ': Submit problem %s' % problem)
         result_thread = result.ResultThreading(self.opener, self.view)
     #    result_thread.start()
         thread = post.PostThreading(self.opener, cpp, problem, result_thread.start)
@@ -80,6 +78,7 @@ class SmojSubmitCommand(sublime_plugin.TextCommand):
         sublime.status_message('Search problem number')
         chunk = self.view.find_all(r'// ?(\d{4})\.cpp', 0)
         if len(chunk) < 1:
+            log.warning           ('Not found problem number')
             sublime.status_message('Not found problem number')
             sublime. error_message('Not found problem number')
             return None

@@ -8,7 +8,7 @@ import json
 import time
 import re
 
-from .. import common
+from .. import common, log
 from .  import config
 
 _res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
@@ -46,7 +46,6 @@ class ResultThreading(threading.Thread):
     def getName(self, st):
         if st[:3] == 'goc':
             st = st[3:]
-        print(st)
         try:
             if len(st) >= 26 and st[:26] == 'monitor_invalid_syscall_id':
                 return 'Restrict Function'
@@ -83,6 +82,7 @@ class ResultThreading(threading.Thread):
             root_result = self.getName(item[0])
             if root_result != 'Accepted':
                 break
+        log.info('Status: %s %s' % (root_result, score))
         for item in result:
             item[0] = self.getName(item[0])
             item[2] = item[2].replace('不可用', 'NaN')

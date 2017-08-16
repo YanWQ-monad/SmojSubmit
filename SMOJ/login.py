@@ -6,7 +6,7 @@ import http.cookiejar
 import threading
 import sublime
 
-from .. import common
+from .. import common, log
 from .  import config
 
 class LoginThreading(threading.Thread):
@@ -42,10 +42,12 @@ class LoginThreading(threading.Thread):
             sublime.status_message('Logging out...')
             self.logout(self.opener)
             opener = self.opener
+            log.debug('Log out from SMOJ')
         else:
             cookie  = http.cookiejar.CookieJar()
             handler = urllib.request.HTTPCookieProcessor(cookie)
             opener  = urllib.request.build_opener(handler)
+        log.info('Log in to SMOJ with user \'%s\'' % self.username)
         sublime.status_message('Logging in...')
         values  = {'redirect_to':'', 'username':self.username, 'password':self.password}
         r = urllib.request.Request(url=config.root_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=common.headers)
@@ -55,7 +57,9 @@ class LoginThreading(threading.Thread):
             self.callback_loginf(True)
             self.result = True
             sublime.status_message('Login OK')
+            log.debug('Log in to SMOJ OK')
         else:
             self.callback_loginf(False)
             self.result = False
             sublime.status_message('Login fail')
+            log.warning('Login fail')
