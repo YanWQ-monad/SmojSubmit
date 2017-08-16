@@ -18,16 +18,16 @@ res_url = config.root_url + '/allmysubmits'
 det_url = config.root_url + '/showresult'
 
 result_link = {
-    'Accept': 'Accepted',
-    'Wrong_Answer': 'Wrong Answer',
-    'compile_error': 'Compile Error',
-    'monitor_time_limit_exceeded9(超时)': 'Time Limit Exceeded',
-    'monitor_segment_error(段错误,爆内存或爆栈?)': 'Runtime Error',
-    'monitor_file_name_error(你的文件名出错了?)': 'File Name Error',
-    'monitor_memory_limit_exceeded': 'Memory Limit Exceeded',
-    'monitor_SIGFPE_error(算术运算错误,除数是0?浮点运算出错？溢出？)': 'SIGFPE Error',
+    'Accept':                                                           'Accepted',
+    'Wrong_Answer':                                                     'Wrong Answer',
+    'compile_error':                                                    'Compile Error',
+    'monitor_time_limit_exceeded9(超时)':                               'Time Limit Exceeded',
+    'monitor_segment_error(段错误,爆内存或爆栈?)':                      'Runtime Error',
+    'monitor_file_name_error(你的文件名出错了?)':                       'File Name Error',
+    'monitor_memory_limit_exceeded':                                    'Memory Limit Exceeded',
+    'monitor_SIGFPE_error(算术运算错误,除数是0?浮点运算出错？溢出？)':  'SIGFPE Error',
     'monitor_time_limit_exceeded14(超时,没用文件操作或者你的程序崩溃)': 'Output Limit Exceeded'
-    # monitor_invalid_syscall_id 
+    # monitor_invalid_syscall_id                          Restrict Function
 }
 
 class ResultThreading(threading.Thread):
@@ -44,6 +44,9 @@ class ResultThreading(threading.Thread):
         view.run_command('smoj_submit_insert_helper', {'st':st+'\n'})
 
     def getName(self, st):
+        if st[:3] == 'goc':
+            st = st[3:]
+        print(st)
         try:
             if len(st) >= 26 and st[:26] == 'monitor_invalid_syscall_id':
                 return 'Restrict Function'
@@ -59,27 +62,15 @@ class ResultThreading(threading.Thread):
         result = result[:-1]
         return result
 
-    def print_accept(self, tab):
-        self.write_line(tab, '')
-        self.write_line(tab, '                            _           _ ')
-        self.write_line(tab, '    /\\                     | |         | |')
-        self.write_line(tab, '   /  \\   ___ ___ ___ _ __ | |_ ___  __| |')
-        self.write_line(tab, '  / /\\ \\ / __/ __/ _ \\ \'_ \\| __/ _ \\/ _` |')
-        self.write_line(tab, ' / ____ \\ (_| (_|  __/ |_) | ||  __/ (_| |')
-        self.write_line(tab, '/_/    \\_\\___\\___\\___| .__/ \\__\\___|\\__,_|')
-        self.write_line(tab, '                     | |                  ')
-        self.write_line(tab, '                     |_|                  ')
-        self.write_line(tab, '')
-
     def print_compile_info(self, tab, compile):
         self.write_line(tab, 'Compile INFO :')
-        self.write_line(tab, compile_info.replace('\r', '\n'))
+        self.write_line(tab, compile.replace('\r', '\n'))
 
     def print_head(self, tab, head):
         tot_len = 0
         for i in range(0, 4):
             tot_len += len(head[i])+2
-        self.write_line(tab, '%s%s%s' % ('|', '-'*(tot_len+3), '|'))
+        self.write_line(tab, '-'*(tot_len+5))
         self.write_line(tab, '| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
         self.write_line(tab, '%s%s%s' % ('|', '-'*(tot_len+3), '|'))
 
@@ -88,6 +79,10 @@ class ResultThreading(threading.Thread):
         fix     = [0       ,  0     , 3     , 3       ]
         head    = ['Result', 'Score', 'Time', 'Memory']
         max_len = [len(head[i]) for i in range(0, 4)]
+        for item in result:
+            root_result = self.getName(item[0])
+            if root_result != 'Accepted':
+                break
         for item in result:
             item[0] = self.getName(item[0])
             item[2] = item[2].replace('不可用', 'NaN')
@@ -102,8 +97,7 @@ class ResultThreading(threading.Thread):
             item[2] = item[2].rjust (max_len[2])
             item[3] = item[3].rjust (max_len[3])
         tab = self.new_file()
-        if score.find('100/100') != -1:
-            self.print_accept(tab)
+        self.write_line(tab, common.getFiglet(root_result))
         if compile_info:
             self.print_compile_info(tab, compile_info)
         self.write_line(tab, 'Result        -> %s <-' % score)
