@@ -1,0 +1,6 @@
+SmojSubmit v2.4.1 Changelog:
+
+**NOTE:** Restarting Sublime Text may required after upgrading.
+
+* Separate source files.
+* Add a **big** "Accepted".
