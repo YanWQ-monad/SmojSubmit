@@ -14,6 +14,14 @@
 >```
 >然后按下回车，等待其安装完毕。
 
+1. 使用`Tools → Command Palette...`打开`Command Palette`；
+2. 选择`Package Control: Add Repository`并且按下`Enter`；
+3. 输入`https://github.com/YanWQ-monad/SmojSubmit`并且按下`Enter`；
+4. 打开`Command Palette`
+5. 选择`Package Control: Install Package`并按下`Enter`
+6. 找到`SmojSubmit`并按下`Enter`
+7. 重启Sublime Text
+
 ### 激活
 通过修改您的用户配置文件激活SmojSubmit，您可以使用菜单项找到它`Preferences → Package Settings → SMOJ Submit → Setting - User`，
 然后你需要在配置文件中输入你的用户名和密码。
