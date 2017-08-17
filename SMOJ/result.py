@@ -8,7 +8,7 @@ import json
 import time
 import re
 
-from .. import common, log
+from .. import common, log, TabsView
 from .  import config
 
 _res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
@@ -40,8 +40,6 @@ class ResultThreading(threading.Thread):
     def new_file(self):
         return self.view.window().new_file()
 
-    def write_line(self, view, st):
-        view.run_command('smoj_submit_insert_helper', {'st':st+'\n'})
 
     def getName(self, st):
         if st[:3] == 'goc':
@@ -61,17 +59,17 @@ class ResultThreading(threading.Thread):
         result = result[:-1]
         return result
 
-    def print_compile_info(self, tab, compile):
-        self.write_line(tab, 'Compile INFO :')
-        self.write_line(tab, compile.replace('\r', '\n'))
+    def print_compile_info(self, view, compile):
+        view.add_line('Compile INFO :')
+        view.add_line(compile.replace('\r', '\n'))
 
-    def print_head(self, tab, head):
+    def print_head(self, view, head):
         tot_len = 0
         for i in range(0, 4):
             tot_len += len(head[i])+2
-        self.write_line(tab, '-'*(tot_len+5))
-        self.write_line(tab, '| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
-        self.write_line(tab, '%s%s%s' % ('|', '-'*(tot_len+3), '|'))
+        view.add_line('-'*(tot_len+5))
+        view.add_line('| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
+        view.add_line('%s%s%s' % ('|', '-'*(tot_len+3), '|'))
 
     def printer(self, result, score, compile_info=None):
         result = self.separate(result)
@@ -96,15 +94,16 @@ class ResultThreading(threading.Thread):
             item[1] = item[1].rjust (max_len[1])
             item[2] = item[2].rjust (max_len[2])
             item[3] = item[3].rjust (max_len[3])
-        tab = self.new_file()
-        self.write_line(tab, common.getFiglet(root_result))
+        view = TabsView.SmojResultView('Result')
+        view.create_view()
+        view.add_line(common.getFiglet(root_result))
         if compile_info:
-            self.print_compile_info(tab, compile_info)
-        self.write_line(tab, 'Result        -> %s <-' % score)
-        self.print_head(tab, head)
+            self.print_compile_info(view, compile_info)
+        view.add_line('Result        -> %s <-' % score)
+        self.print_head(view, head)
         for item in result:
-            self.write_line(tab, '| %s | %-3s | %s ms | %s KB |' % (item[0], item[1], item[2], item[3]))
-        self.write_line(tab, '-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
+            view.add_line('| %s | %-3s | %s ms | %s KB |' % (item[0], item[1], item[2], item[3]))
+        view.add_line('-%s-%s-%s-%s-' % ((len(head[0])+2)*'-', (len(head[1])+2)*'-', (len(head[2])+2)*'-', (len(head[3])+2)*'-'))
 
     def wait_judge(self):
         name, problem, stamp, score = None, None, None, None
