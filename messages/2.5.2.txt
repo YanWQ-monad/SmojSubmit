@@ -1,0 +1,6 @@
+SmojSubmit v2.5.1 Changelog:
+
+**NOTE:** Restarting Sublime Text may required after upgrading.
+
+### Feature
+* Close result tab without prompt.
