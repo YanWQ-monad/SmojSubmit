@@ -1,6 +1,8 @@
 # SmojSubmit
 一个可以在[SMOJ](http://smoj.nhedu.net)上提交题目的Sublime Text插件。
-  
+
+![演示](https://raw.githubusercontent.com/YanWQ-monad/monad/master/Material/SmojSubmitStatic/Illustration.gif)
+
 ### 安装
 >如果你没有安装`Package Control`，你需要通过以下操作安装：  
 >1. 使用`Tools → Command Palette...`打开`Command Palette`；
@@ -11,6 +13,14 @@
 >import urllib.request,os,hashlib; h = 'df21e130d211cfc94d9b0905775a7c0f' + '1e3d39e33b79698005270310898eea76'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)
 >```
 >然后按下回车，等待其安装完毕。
+
+1. 使用`Tools → Command Palette...`打开`Command Palette`；
+2. 选择`Package Control: Add Repository`并且按下`Enter`；
+3. 输入`https://github.com/YanWQ-monad/SmojSubmit`并且按下`Enter`；
+4. 打开`Command Palette`
+5. 选择`Package Control: Install Package`并按下`Enter`
+6. 找到`SmojSubmit`并按下`Enter`
+7. 重启Sublime Text
 
 ### 激活
 通过修改您的用户配置文件激活SmojSubmit，您可以使用菜单项找到它`Preferences → Package Settings → SMOJ Submit → Setting - User`，
