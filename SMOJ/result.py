@@ -28,6 +28,7 @@ result_link = {
     'monitor_SIGFPE_error(算术运算错误,除数是0?浮点运算出错？溢出？)':  'SIGFPE Error',
     'monitor_time_limit_exceeded14(超时,没用文件操作或者你的程序崩溃)': 'Output Limit Exceeded'
     # monitor_invalid_syscall_id                          Restrict Function
+    # 测评机出错--无法清空沙箱或者无法复制文件.in到沙箱   No Data
 }
 
 class ResultThreading(threading.Thread):
@@ -47,6 +48,8 @@ class ResultThreading(threading.Thread):
         try:
             if len(st) >= 26 and st[:26] == 'monitor_invalid_syscall_id':
                 return 'Restrict Function'
+            if len(st) >= 21 and st[:21] == '测评机出错--无法清空沙箱或者无法复制文件':
+                return 'No Data'
             return result_link[st]
         except:
             return st
@@ -71,7 +74,7 @@ class ResultThreading(threading.Thread):
         view.add_line('| %s | %s | %s | %s |' % (head[0], head[1], head[2], head[3]))
         view.add_line('%s%s%s' % ('|', '-'*(tot_len+3), '|'))
 
-    def printer(self, result, score, compile_info=None):
+    def printer(self, result, problem, score, compile_info=None):
         result = self.separate(result)
         fix     = [0       ,  0     , 3     , 3       ]
         head    = ['Result', 'Score', 'Time', 'Memory']
@@ -96,6 +99,7 @@ class ResultThreading(threading.Thread):
             item[3] = item[3].rjust (max_len[3])
         view = TabsView.SmojResultView('Result')
         view.create_view()
+        view.add_line('Problem ID : %s' % str(problem))
         view.add_line(common.getFiglet(root_result))
         if compile_info:
             self.print_compile_info(view, compile_info)
@@ -146,4 +150,4 @@ class ResultThreading(threading.Thread):
             compile_info = result['compileInfo'][0]
         except:
             pass
-        self.printer(result['result'].replace('\n', ''), score, compile_info)
+        self.printer(result['result'].replace('\n', ''), problem, score, compile_info)
