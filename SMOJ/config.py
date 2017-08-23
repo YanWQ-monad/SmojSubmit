@@ -1,1 +1,1 @@
-root_url = 'http://10.3.35.134'
+root_url = 'http://smoj.nhedu.net'
