@@ -16,6 +16,15 @@
                         "children":
                         [
                             {
+                                "command": "edit_settings", "args":
+                                {
+                                    "base_file": "${packages}/SmojSubmit/SmojSubmit.sublime-settings",
+                                    "user_file": "${packages}/User/SmojSubmit.sublime-settings",
+                                    "default": "// Settings in here override those in \"SmojSubmit/SmojSubmit.sublime-settings\",\n{\n\t$0\n}\n"
+                                }
+                            },
+                            { "caption": "-", "id": "end" },
+                            {
                                 "command": "open_file", "args":
                                 {
                                     "file": "${packages}/SmojSubmit/SmojSubmit.sublime-settings"
