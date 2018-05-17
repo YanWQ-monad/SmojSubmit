@@ -1,7 +1,12 @@
 [
     {
-    	"caption": "SmojSubmit: Submit to SMOJ",
-    	"command": "smoj_submit",
-    	"args":{}
+        "caption": "SmojSubmit: Submit to SMOJ",
+        "command": "smoj_submit",
+        "args":{ "type": "submit" }
+    },
+    {
+        "caption": "SmojSubmit: Relogin",
+        "command": "smoj_submit",
+        "args":{ "type": "login" }
     }
 ]

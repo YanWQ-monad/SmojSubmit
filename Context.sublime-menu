@@ -1,5 +1,5 @@
 [
     { "caption": "-" },
-    { "caption": "Submit to SMOJ", "command": "smoj_submit", "args": {}},
+    { "caption": "Submit to SMOJ", "command": "smoj_submit", "args": { "type": "submit" }},
     { "caption": "-", "id": "end" }
 ]
