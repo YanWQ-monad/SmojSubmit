@@ -1,0 +1,8 @@
+SmojSubmit v2.6.0 Changelog:
+
+**NOTE:** Restarting Sublime Text may required after upgrading.
+
+### Feature
+* Login only when Sublime start (instead of each `.cpp` file)
+* Increase result pull interval (0.05s -> 1s)
+* Add `relogin` option
