@@ -130,7 +130,7 @@ class ResultThreading(threading.Thread):
                 match = _res_re.search(html)
                 score = match.group(4)
                 break
-            time.sleep(0.05)
+            time.sleep(1)
         return name, problem, stamp, score
 
 
