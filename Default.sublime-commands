@@ -1,0 +1,10 @@
+[
+    {
+        "caption": "SmojSubmit: Submit to SMOJ",
+        "command": "smoj_submit",
+        "args": {
+            "type": "submit",
+            "oj": "smoj"
+        }
+    }
+]

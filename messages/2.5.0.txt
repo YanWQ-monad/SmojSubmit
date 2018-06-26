@@ -1,0 +1,9 @@
+SmojSubmit v2.5.0 Changelog:
+
+**NOTE:** Restarting Sublime Text may required after upgrading.
+
+### Feature
+* Show result by figlet.
+
+### Bug Fixs
+* Fix could not show compile error info.

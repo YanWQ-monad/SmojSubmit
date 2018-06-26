@@ -1,0 +1,28 @@
+[
+    { "caption": "-" },
+    {
+        "caption": "Submit",
+        "command": "smoj_submit_latest",
+        "args": { "type": "submit" }
+    },
+    {
+        "caption": "Submit to...",
+        "children": [
+            {
+                "caption": "SMOJ",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "smoj" }
+            } // Remember add ',' here if you add your custom oj below
+
+            /* OJ template
+            {
+                "caption": "{OJ_DISPLAY_NAME}",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "{PYTHON_FILE_BASE_NAME}" }
+            }
+            */
+
+        ]
+    },
+    { "caption": "-", "id": "end" }
+]

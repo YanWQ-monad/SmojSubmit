@@ -1,0 +1,8 @@
+SmojSubmit v3.0.0 Changelog:
+
+**NOTE:** Restarting Sublime Text may be required after upgrading.
+
+### Feature
+* **Rebuild all codes**
+* Add Thread Manager for network communication
+* Easy to support a new OJ
