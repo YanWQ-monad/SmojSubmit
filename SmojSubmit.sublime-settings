@@ -8,6 +8,12 @@
 			"username": "",
 			"password": "",
 			"lang": [ "C++" ]
+		},
+		"poj": {
+			"enable": false,
+			"username": "",
+			"password": "",
+			"lang": [ "C++", "C", "Java", "Pascal" ]
 		}
 	}
 }
