@@ -2,13 +2,12 @@
 	"thread_config": {
 		"max_active_thread_count": 3
 	},
-	"oj": [
-		{
-			"name": "smoj",
-			"enable": true,
+	"oj": {
+		"smoj": {
+			"enable": false,
 			"username": "",
 			"password": "",
 			"lang": [ "C++" ]
 		}
-	]
+	}
 }

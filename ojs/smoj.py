@@ -80,7 +80,7 @@ def login(username, password):
 		return False
 	else:
 		sublime.status_message('Login to SMOJ OK')
-		log.info('Log in to SMOJ: OK')
+		log.info('Login to SMOJ: OK')
 		return True
 
 
@@ -95,13 +95,13 @@ def code_filter(code, pid):
 def submit(pid, code, lang):
 	if check_login():
 		if not login(username, password):
-			log.error('Submit fail: Cannot log in')
+			log.error('Submit fail: Cannot login')
 			return None
 	assert lang == 'C++' or lang == 'C'
 
 	code = code_filter(code, pid)
-	sublime.status_message('Submitting problem to SMOJ')
-	log.debug             ('Submitting problem to SMOJ')
+	sublime.status_message('Submitting code to SMOJ')
+	log.debug             ('Submitting code to SMOJ')
 
 	values  = {
 		'pid': str(pid),

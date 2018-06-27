@@ -38,10 +38,11 @@ def pretty_format(head, detail):
 
 	head = [ head[i].center(max_len[i]) for i in range(0, cols) ]
 	for item in detail:
-		item[0] = item[0].center(max_len[0])
-		item[1] = item[1].rjust (max_len[1])
-		item[2] = item[2].rjust (max_len[2])
-		item[3] = item[3].rjust (max_len[3])
+		for i in range(0, len(item)):
+			if head[i] in [ 'Time', 'Memory', 'Score' ]:
+				item[i] = item[i].rjust (max_len[i])
+			else:
+				item[i] = item[i].center(max_len[i])
 
 	return head, detail
 
@@ -56,7 +57,7 @@ def print_result(head, detail, main, score, cpl_info, pid):
 	view.add_line(figlet.get_figlet(main))
 	if cpl_info:
 		view.add_line('Compile INFO:')
-		view.add_line(compile.replace('\r', '\n'))
+		view.add_line(cpl_info.replace('\r', '\n'))
 	view.add_line('Result        -> {} <-'.format(score))
 	view.add_line('-' * (tot_len + len(head) + 1))
 	view.add_line('| ' + ' | '.join(head) + ' |')
