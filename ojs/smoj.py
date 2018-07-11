@@ -48,10 +48,13 @@ def init(config):
 	global password
 	username = config['username']
 	password = config['password']
-	login(username, password)
+	if config.get('init_login', False):
+		login(username, password)
 
 
 def check_login(resp=None):
+	if opener is None:
+		return 'Object "opener" is None'
 	if resp is None:
 		r = urllib.request.Request(url=root_url, headers=common.headers)
 		resp = opener.open(r)
@@ -60,6 +63,7 @@ def check_login(resp=None):
 
 
 def login(username, password):
+	sublime.status_message('Logging in to SMOJ...')
 	global opener
 	cookie  = http.cookiejar.CookieJar()
 	handler = urllib.request.HTTPCookieProcessor(cookie)
@@ -100,8 +104,8 @@ def submit(pid, code, lang):
 	assert lang == 'C++' or lang == 'C'
 
 	code = code_filter(code, pid)
-	sublime.status_message('Submitting code to SMOJ')
-	log.debug             ('Submitting code to SMOJ')
+	sublime.status_message('Submitting code to SMOJ...')
+	log.debug             ('Submitting code to SMOJ...')
 
 	values  = {
 		'pid': str(pid),
@@ -119,7 +123,7 @@ def submit(pid, code, lang):
 			sublime.status_message('Submit Fail: {}'.format(info))
 			log.warning('Submit Fail: {}'.format(info))
 	else:
-		sublime.status_message('Submit OK, fetching result')
+		sublime.status_message('Submit OK, fetching result...')
 		log.info('Submit OK')
 
 	fetch_result()
@@ -172,7 +176,7 @@ def load_result(name, pid, stamp):
 	result = json.loads(resp.read().decode())
 	if result['result'] == 'OI_MODE':
 		sublime.status_message('This is an OI-MODE problem')
-		return None
+		return None, None, None
 	compile_info = None
 	try:
 		compile_info = result['compileInfo'][0]
@@ -186,7 +190,7 @@ def load_result(name, pid, stamp):
 		row[2] = row[2].replace('不可用', 'NaN') + ' ms'
 		row[3] = row[3].replace('不可用', 'NaN') + ' KB'
 
-	non_ac_list = list(filter(lambda x: x != 'Accept', [ item[0] for item in detail ]))
+	non_ac_list = list(filter(lambda x: x != 'Accepted', [ item[0] for item in detail ]))
 	main = non_ac_list[0] if len(non_ac_list) else 'Accepted'
 
 	return detail, main, compile_info
@@ -197,4 +201,5 @@ def fetch_result():
 
 	name, pid, stamp, score = wait_for_judge()
 	detail, main, cpl_info = load_result(name, pid, stamp)
-	printer.print_result(head, detail, main, score, cpl_info, pid)
+	if main is not None:
+		printer.print_result(head, detail, main, score, cpl_info, pid)

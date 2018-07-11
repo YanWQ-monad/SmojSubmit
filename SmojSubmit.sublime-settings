@@ -7,13 +7,15 @@
 			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++" ]
+			"lang": [ "C++" ],
+			"init_login": false
 		},
 		"poj": {
 			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++", "C", "Java", "Pascal" ]
+			"lang": [ "C++", "C", "Java", "Pascal" ],
+			"init_login": false
 		}
 	}
 }
