@@ -10,7 +10,7 @@ import re
 
 from ..libs import logging as log
 from ..libs import printer
-from .. import common
+from ..main import headers
 
 
 username = None
@@ -56,7 +56,7 @@ def check_login(resp=None):
 	if opener is None:
 		return 'Object "opener" is None'
 	if resp is None:
-		r = urllib.request.Request(url=root_url, headers=common.headers)
+		r = urllib.request.Request(url=root_url, headers=headers)
 		resp = opener.open(r)
 	if resp.url.find('/login') != -1:
 		return resp.read().decode()[:100]
@@ -75,7 +75,7 @@ def login(username, password):
 		'password': password
 	}
 
-	r = urllib.request.Request(url=root_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=common.headers)
+	r = urllib.request.Request(url=root_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=headers)
 	resp = opener.open(r)
 	info = check_login(resp)
 	if info:
@@ -112,7 +112,7 @@ def submit(pid, code, lang):
 		'language': '.cpp',
 		'code': code
 	}
-	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=common.headers)
+	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=headers)
 	resp = opener.open(r)
 	if resp.url.find('allmysubmits') == -1:
 		if resp.url.find('login') != -1:
@@ -134,7 +134,7 @@ def wait_for_judge():
 	while True:
 		time.sleep(1)
 		sublime.status_message('Waiting for judging...')
-		r = urllib.request.Request(url=rest_url, headers=common.headers)
+		r = urllib.request.Request(url=rest_url, headers=headers)
 		resp = opener.open(r)
 		html = resp.read().decode()
 		m = _isw_re.search(html)
@@ -171,7 +171,7 @@ def load_result(name, pid, stamp):
 		'pid': pid,
 		'user': name
 	}
-	r = urllib.request.Request(url=detl_url, data=urllib.parse.urlencode(values).encode(), headers=common.headers)
+	r = urllib.request.Request(url=detl_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
 	resp = opener.open(r)
 	result = json.loads(resp.read().decode())
 	if result['result'] == 'OI_MODE':

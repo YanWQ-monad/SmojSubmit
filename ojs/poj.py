@@ -11,7 +11,7 @@ import re
 
 from ..libs import logging as log
 from ..libs import printer
-from .. import common
+from ..main import headers
 
 
 username = None
@@ -47,7 +47,7 @@ def init(config):
 
 def check_login(resp=None):
 	if resp is None:
-		r = urllib.request.Request(url=root_url, headers=common.headers)
+		r = urllib.request.Request(url=root_url, headers=headers)
 		resp = opener.open(r)
 	text = resp.read().decode()
 	if text.find('<b>{}</b>'.format(username)) == -1:
@@ -67,7 +67,7 @@ def login(username, password):
 		'url': '/'
 	}
 
-	r = urllib.request.Request(url=sign_url, data=urllib.parse.urlencode(values).encode(), headers=common.headers)
+	r = urllib.request.Request(url=sign_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
 	resp = opener.open(r)
 	if check_login(resp):
 		sublime.status_message('Login to POJ fail')
@@ -97,7 +97,7 @@ def submit(pid, code, lang):
 		'submit': 'submit',
 		'encoded': '1'
 	}
-	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=common.headers)
+	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=headers)
 	resp = opener.open(r)
 	text = resp.read().decode()
 	if resp.url.find('status') == -1:
@@ -128,7 +128,6 @@ def reduce_html(text, pid):
 
 def load_result(username, pid):
 	sublime.status_message('Waiting for judge...')
-
 	values = {
 		'problem_id': str(pid),
 		'user_id': username,
@@ -140,7 +139,7 @@ def load_result(username, pid):
 	while True:
 		time.sleep(1)
 
-		r = urllib.request.Request(url=url, headers=common.headers)
+		r = urllib.request.Request(url=url, headers=headers)
 		resp = opener.open(r)
 		text = resp.read().decode()
 		text = reduce_html(text, pid)
@@ -160,7 +159,7 @@ def load_result(username, pid):
 	cpl_info = None
 
 	if main == 'Compile Error':
-		r = urllib.request.Request(url=root_url + '/showcompileinfo?solution_id={}'.format(jid), headers=common.headers)
+		r = urllib.request.Request(url=root_url + '/showcompileinfo?solution_id={}'.format(jid), headers=headers)
 		resp = opener.open(r)
 		text = resp.read().decode()
 		cpl_info = html.parser.HTMLParser().unescape(_cpl_re.findall(text)[0])

@@ -2,7 +2,7 @@
 
 import threading
 
-from .. import common
+from ..main import PLUGIN_NAME
 
 
 DEBUG = False
@@ -10,7 +10,7 @@ g_lock = threading.Lock()
 
 
 def write_log(level, message):
-	s = common.PLUGIN_NAME + ': [' + level + '] ' + message
+	s = PLUGIN_NAME + ': [' + level + '] ' + message
 	with g_lock:
 		print(s)
 
