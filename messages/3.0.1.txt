@@ -1,0 +1,7 @@
+SmojSubmit v3.0.1 Changelog:
+
+**NOTE:** Restarting Sublime Text may be required after upgrading.
+
+### Feature
+* Support HDU (http://acm.hdu.edu.cn)
+* Fix some bugs
