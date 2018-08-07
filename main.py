@@ -16,7 +16,6 @@ from .libs import logging as log
 from .libs import loader
 from .libs import code
 
-latest = None
 
 class SmojAddLineReadonly(sublime_plugin.TextCommand):
 	def run(self, edit, line):
@@ -26,6 +25,8 @@ class SmojAddLineReadonly(sublime_plugin.TextCommand):
 
 
 class SmojSubmitCommand(loader.MonadApplicationLoader):
+	latest_value = None
+
 	def __init__(self):
 		# raise Exception
 		loader.MonadApplicationLoader.__init__(self)
@@ -34,7 +35,7 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 		self.oj_config = {}
 
 	def delay_init(self):
-		log.info('{} Loaded'.format(PLUGIN_NAME))
+		# log.info('{} Loaded'.format(PLUGIN_NAME))
 		setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
 		tm.set_config(setting.get('thread_config'))
 		for (name, oj) in setting.get('oj').items():
@@ -56,7 +57,6 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 	# 	self.setting = new_setting
 
 	def run(self, **kw):
-		global latest
 		oj_name = kw['oj']
 		
 		if oj_name not in self.oj_list:
@@ -72,16 +72,18 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 				sublime. error_message('Unsupported Language: {}'.format(lang))
 				return None
 			pid  = code.get_pid()
+			if pid is None:
+				return None
 			text = code.get_text()
 			loader.oj_call(oj_name, 'submit', pid, text, lang)
 
-		latest = oj_name
+		SmojSubmitCommand.latest_value = oj_name
 
 
 class SmojSubmitLatestCommand(sublime_plugin.ApplicationCommand):
 	def is_enabled(self):
-		return (latest is not None)
+		return (SmojSubmitCommand.latest_value is not None)
 
 	def run(self, **kw):
-		kw['oj'] = latest
+		kw['oj'] = SmojSubmitCommand.latest_value
 		sublime.run_command('smoj_submit', kw)

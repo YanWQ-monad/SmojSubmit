@@ -17,7 +17,7 @@ username = None
 password = None
 opener = None
 
-root_url = 'http://smoj.nhedu.net'
+root_url = 'http://10.3.35.134'
 post_url = root_url + '/submit_problem?pid={}'
 rest_url = root_url + '/allmysubmits'
 detl_url = root_url + '/showresult'
@@ -100,7 +100,7 @@ def submit(pid, code, lang):
 	if check_login():
 		if not login(username, password):
 			log.error('Submit fail: Cannot login')
-			return None
+			return False
 	assert lang == 'C++' or lang == 'C'
 
 	code = code_filter(code, pid)
@@ -122,6 +122,7 @@ def submit(pid, code, lang):
 			info = resp.read().decode()[:100]
 			sublime.status_message('Submit Fail: {}'.format(info))
 			log.warning('Submit Fail: {}'.format(info))
+		return False
 	else:
 		sublime.status_message('Submit OK, fetching result...')
 		log.info('Submit OK')

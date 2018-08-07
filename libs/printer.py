@@ -39,7 +39,7 @@ def pretty_format(head, detail):
 	head = [ head[i].center(max_len[i]) for i in range(0, cols) ]
 	for item in detail:
 		for i in range(0, len(item)):
-			if head[i] in [ 'Time', 'Memory', 'Score' ]:
+			if head[i].strip(' ') in [ 'Time', 'Memory', 'Score' ]:
 				item[i] = item[i].rjust (max_len[i])
 			else:
 				item[i] = item[i].center(max_len[i])

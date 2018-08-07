@@ -42,10 +42,13 @@ def init(config):
 	global password
 	username = config['username']
 	password = config['password']
-	login(username, password)
+	if config.get('init_login', False):
+		login(username, password)
 
 
 def check_login(resp=None):
+	if opener is None:
+		return True
 	if resp is None:
 		r = urllib.request.Request(url=root_url, headers=headers)
 		resp = opener.open(r)
@@ -81,6 +84,7 @@ def login(username, password):
 
 def submit(pid, code, lang):
 	if check_login():
+		sublime.status_message('Logging in to POJ...')
 		if not login(username, password):
 			log.error('Submit fail: Cannot log in')
 			return None
@@ -108,7 +112,7 @@ def submit(pid, code, lang):
 			sublime.status_message('Submit Fail')
 			log.warning('Submit Fail')
 	else:
-		sublime.status_message('Submit OK, fetching result')
+		sublime.status_message('Submit OK, fetching result...')
 		log.info('Submit OK')
 
 	fetch_result(username, pid)
@@ -127,7 +131,6 @@ def reduce_html(text, pid):
 
 
 def load_result(username, pid):
-	sublime.status_message('Waiting for judge...')
 	values = {
 		'problem_id': str(pid),
 		'user_id': username,
@@ -137,6 +140,7 @@ def load_result(username, pid):
 	url = rest_url + '?' + urllib.parse.urlencode(values)
 
 	while True:
+		sublime.status_message('Waiting for judging...')
 		time.sleep(1)
 
 		r = urllib.request.Request(url=url, headers=headers)
@@ -147,15 +151,15 @@ def load_result(username, pid):
 		row = _res_re.findall(text)[0].split('</td><td>')
 
 		main = row[3]
-		if main not in  ['Compiling', 'Judging', 'Waiting', 'Queuing']:
+		if main not in  ['Compiling', 'Judging', 'Waiting', 'Queuing', 'Running & Judging']:
 			break
 
 	sublime.status_message('Loading result...')
 	log.debug             ('Loading result...')
 
 	jid = row[0]
-	_time = row[4]
-	memory = row[5]
+	memory = row[4]
+	_time = row[5]
 	cpl_info = None
 
 	if main == 'Compile Error':
