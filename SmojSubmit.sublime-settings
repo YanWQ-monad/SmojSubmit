@@ -16,6 +16,13 @@
 			"password": "",
 			"lang": [ "C++", "C", "Java", "Pascal" ],
 			"init_login": false
+		},
+		"hdu": {
+			"enable": false,
+			"username": "",
+			"password": "",
+			"lang": [ "C++", "C", "Java", "Pascal", "C#" ],
+			"init_login": false
 		}
 	}
 }

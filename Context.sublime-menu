@@ -17,9 +17,14 @@
                 "caption": "POJ",
                 "command": "smoj_submit",
                 "args": { "type": "submit", "oj": "poj" }
+            },
+            {
+                "caption": "HDU",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "hdu" }
             } // Remember add ',' here if you add your custom oj below
 
-            /* OJ template
+            /** OJ template **
             {
                 "caption": "{OJ_DISPLAY_NAME}",
                 "command": "smoj_submit",
