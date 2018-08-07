@@ -10,6 +10,7 @@ import time
 import re
 
 from ..libs import logging as log
+from ..libs import middleware
 from ..libs import printer
 from ..main import headers
 
@@ -89,6 +90,7 @@ def submit(pid, code, lang):
 			log.error('Submit fail: Cannot log in')
 			return None
 	lang = lang_map[lang]
+	code = middleware.freopen_filter(code)
 	code = base64.b64encode(code.encode()).decode()
 
 	sublime.status_message('Submitting code to POJ...')
@@ -172,9 +174,7 @@ def load_result(username, pid):
 	return main, cpl_info, detail
 
 
-
 def fetch_result(username, pid):
 	head = ['Result', 'Time', 'Memory']
 	main, cpl_info, detail = load_result(username, pid)
 	printer.print_result(head, [ detail ], main, main, cpl_info, pid)
-

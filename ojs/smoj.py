@@ -9,6 +9,7 @@ import time
 import re
 
 from ..libs import logging as log
+from ..libs import middleware
 from ..libs import printer
 from ..main import headers
 
@@ -22,9 +23,6 @@ post_url = root_url + '/submit_problem?pid={}'
 rest_url = root_url + '/allmysubmits'
 detl_url = root_url + '/showresult'
 
-_fre_re = re.compile(r'freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in |out)\);')
-_cm1_re = re.compile(r'/\*(\s*)((freopen(.*,.*,.*)\s*){1,2})\s*\*/')
-_cm2_re = re.compile(r'(\s*)//(\s*)(freopen\("([^.])+\.(in|out)"( ?), "(r|w)", std(in|out)( ?)\);)')
 _res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
 _isw_re = re.compile(r'<td><a href="showproblem\?id=\d{4,}">\d{4,}</a></td>\s*<td>([a-zA-Z ]*)</td>')
 
@@ -88,14 +86,6 @@ def login(username, password):
 		return True
 
 
-def code_filter(code, pid):
-	result = code
-	result = re.sub(_fre_re, r'freopen("{}.\2"\3, "\4", std\5);'.format(pid), result)
-	result = re.sub(_cm1_re, r'\1\2'                                        , result)
-	result = re.sub(_cm2_re, r'\1\2\3'                                      , result)
-	return result
-
-
 def submit(pid, code, lang):
 	if check_login():
 		if not login(username, password):
@@ -103,7 +93,7 @@ def submit(pid, code, lang):
 			return False
 	assert lang == 'C++' or lang == 'C'
 
-	code = code_filter(code, pid)
+	code = middleware.freopen_filter(code, pid)
 	sublime.status_message('Submitting code to SMOJ...')
 	log.debug             ('Submitting code to SMOJ...')
 
