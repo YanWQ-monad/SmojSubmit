@@ -13,7 +13,8 @@ figlet_link = {
 	'Memory Limit Exceeded': 'MLE',
 	'SIGFPE Error':          'SE',
 	'Output Limit Exceeded': 'OLE',
-	'Restrict Function':     'RF'
+	'Restrict Function':     'RF',
+	'Presentation Error':    'PE'
 }
 
 
