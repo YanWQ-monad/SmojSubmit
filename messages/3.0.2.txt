@@ -1,0 +1,7 @@
+SmojSubmit v3.0.2 Changelog:
+
+**NOTE:** Restarting Sublime Text may be required after upgrading.
+
+### Feature
+* Support BZOJ (https://www.lydsy.com/JudgeOnline)
+* Add `Presentation Error` figlet
