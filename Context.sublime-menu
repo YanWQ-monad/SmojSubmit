@@ -22,6 +22,11 @@
                 "caption": "HDU",
                 "command": "smoj_submit",
                 "args": { "type": "submit", "oj": "hdu" }
+            },
+            {
+                "caption": "BZOJ",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "bzoj" }
             } // Remember add ',' here if you add your custom oj below
 
             /** OJ template **

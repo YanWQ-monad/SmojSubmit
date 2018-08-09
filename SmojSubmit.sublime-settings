@@ -23,6 +23,13 @@
 			"password": "",
 			"lang": [ "C++", "C", "Java", "Pascal", "C#" ],
 			"init_login": false
+		},
+		"bzoj": {
+			"enable": false,
+			"username": "",
+			"password": "",
+			"lang": [ "C++", "C", "Java", "Pascal", "Python" ],
+			"init_login": false
 		}
 	}
 }
