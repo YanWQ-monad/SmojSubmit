@@ -108,6 +108,7 @@ def submit(pid, code, lang):
 		else:
 			sublime.status_message('Submit Fail')
 			log.warning('Submit Fail')
+		return False
 	else:
 		sublime.status_message('Submit OK, fetching result...')
 		log.info('Submit OK')
