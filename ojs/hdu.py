@@ -11,12 +11,13 @@ import re
 from ..libs import logging as log
 from ..libs import middleware
 from ..libs import printer
-from ..main import headers
+from ..libs import config
 
 
 username = None
 password = None
 opener = None
+headers = None
 
 root_url = 'http://acm.hdu.edu.cn'
 sign_url = root_url + '/userloginex.php?action=login'
@@ -165,3 +166,7 @@ def fetch_result(username, pid):
 	main, cpl_info, detail = load_result(username, pid)
 	figlet = 'Runtime Error' if main.startswith('Runtime Error') else main
 	printer.print_result(head, [ detail ], figlet, main, cpl_info, pid)
+
+
+cfg = config.Config()
+headers = cfg.get_settings().get('headers')

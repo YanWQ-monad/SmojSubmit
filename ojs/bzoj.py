@@ -11,12 +11,13 @@ import re
 from ..libs import logging as log
 from ..libs import middleware
 from ..libs import printer
-from ..main import headers
+from ..libs import config
 
 
 username = None
 password = None
 opener = None
+headers = None
 
 root_url = 'https://www.lydsy.com/JudgeOnline'
 sign_url = root_url + '/login.php'
@@ -167,3 +168,7 @@ def fetch_result(username, pid):
 	head = ['Result', 'Time', 'Memory']
 	main, cpl_info, detail = load_result(username, pid)
 	printer.print_result(head, [ detail ], main, main, cpl_info, pid)
+
+
+cfg = config.Config()
+headers = cfg.get_settings().get('headers')

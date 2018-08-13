@@ -3,18 +3,14 @@
 import sublime_plugin
 import sublime
 
-
-PLUGIN_NAME = 'SmojSubmit'
-headers ={
-	'User-Agent': r'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.75 Safari/537.36',
-	'Accept': r'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
-}
-
-
 from .libs import thread_manager as tm
 from .libs import logging as log
+from .libs import config
 from .libs import loader
 from .libs import code
+
+
+PLUGIN_NAME = 'SmojSubmit'
 
 
 class SmojAddLineReadonly(sublime_plugin.TextCommand):
@@ -28,24 +24,30 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 	latest_value = None
 
 	def __init__(self):
-		# raise Exception
 		loader.MonadApplicationLoader.__init__(self)
+		self.cfg = config.Config()
 		self.login = False
 		self.oj_list = []
 		self.oj_config = {}
 
 	def delay_init(self):
-		# log.info('{} Loaded'.format(PLUGIN_NAME))
-		setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
+		self.cfg.load_config(PLUGIN_NAME)
+		setting = self.cfg.get_settings()
+		log.set_logging_config(PLUGIN_NAME, setting.get('logging'))
+		log.debug('Plugin loaded')
+
 		tm.set_config(setting.get('thread_config'))
 		for (name, oj) in setting.get('oj').items():
 			if oj.get('enable') is None or oj.get('enable'):
+				log.debug('  Found oj: {}'.format(name))
 				loader.oj_call(name, 'init', oj)
 				self.oj_list.append(name)
 				self.oj_config[name] = dict(oj)
 				self.oj_config[name]['name'] = name
-		# setting.add_on_change(PLUGIN_NAME, self.reload_settings)
-		self.setting = setting
+
+		SmojSubmitCommand.latest_value = setting.get('default_oj')
+		if SmojSubmitCommand.latest_value:
+			log.debug('Set default oj => {}'.format(SmojSubmitCommand.latest_value))
 
 	# def reload_settings(self):
 	# 	new_setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
@@ -66,15 +68,16 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 
 		if kw['type'] == 'submit':
 			lang = code.get_lang()
+			pid  = code.get_pid()
+			text = code.get_text()
 			if lang not in self.oj_config[oj_name]['lang']:
 				log.error('Unsupported Language: {}'.format(lang))
 				sublime.status_message('Unsupported Language: {}'.format(lang))
 				sublime. error_message('Unsupported Language: {}'.format(lang))
 				return None
-			pid  = code.get_pid()
 			if pid is None:
 				return None
-			text = code.get_text()
+			log.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
 			loader.oj_call(oj_name, 'submit', pid, text, lang)
 
 		SmojSubmitCommand.latest_value = oj_name

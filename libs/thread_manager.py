@@ -57,7 +57,7 @@ def set_config(config):
 
 
 def add_thread(thread):
-	log.debug('Add a thread')
+	log.trace('Add a thread')
 	pool.put(thread)
 	with lock:
 		event.set()

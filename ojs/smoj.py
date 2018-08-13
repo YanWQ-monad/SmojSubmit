@@ -11,12 +11,13 @@ import re
 from ..libs import logging as log
 from ..libs import middleware
 from ..libs import printer
-from ..main import headers
+from ..libs import config
 
 
 username = None
 password = None
 opener = None
+headers = None
 
 root_url = 'http://10.3.35.134'
 post_url = root_url + '/submit_problem?pid={}'
@@ -194,3 +195,7 @@ def fetch_result():
 	detail, main, cpl_info = load_result(name, pid, stamp)
 	if main is not None:
 		printer.print_result(head, detail, main, score, cpl_info, pid)
+
+
+cfg = config.Config()
+headers = cfg.get_settings().get('headers')
