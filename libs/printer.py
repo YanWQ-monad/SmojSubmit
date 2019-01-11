@@ -20,11 +20,11 @@ class SmojResultView:
 		self.view.set_read_only(True)
 		self.closed = False
 
-	def add_line(self, line):
-		if line[-1:] != '\n':
-			line = line + '\n'
+	def add_line(self, content, line=None):
+		if content[-1:] != '\n':
+			content = content + '\n'
 		if self.is_open():
-			self.view.run_command('smoj_add_line_readonly', {'line': line})
+			self.view.run_command('smoj_add_line_readonly', {'content': content, 'line': line})
 
 	def is_open(self):
 		return not self.closed

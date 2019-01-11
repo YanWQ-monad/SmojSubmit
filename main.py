@@ -14,10 +14,22 @@ PLUGIN_NAME = 'SmojSubmit'
 
 
 class SmojAddLineReadonly(sublime_plugin.TextCommand):
-	def run(self, edit, line):
+	def run(self, edit, content, line=None):
 		self.view.set_read_only(False)
-		self.view.insert(edit, self.view.size(), line)
+		if line is None:
+			self.view.insert(edit, self.view.size(), content)
+		else:
+			self.view.insert(edit, self.view.text_point(line - 1, 0), content)
 		self.view.set_read_only(True)
+
+
+class SmojReplaceLineReadonly(sublime_plugin.TextCommand):
+	def run(self, edit, line, content):
+		self.view.set_read_only(False)
+		region = self.view.line(self.view.text_point(line - 1, 0))
+		self.view.replace(edit, region, content)
+		self.view.set_read_only(True)
+
 
 
 class SmojSubmitCommand(loader.MonadApplicationLoader):
