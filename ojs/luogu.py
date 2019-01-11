@@ -302,7 +302,7 @@ def fetch_result(rid, pid):
 					str(value['time']) + 'ms',
 					str(value['memory']) + 'KB',
 					str(value['score']),
-					value['desc'].replace('\n', ' ')
+					value['desc'].replace('\n', ' ') if value['desc'] else ''
 				]
 
 			if view.compile_msg_height == 0 and len(msg['detail']['compile']['content']):
