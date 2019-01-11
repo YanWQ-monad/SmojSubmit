@@ -283,7 +283,8 @@ def fetch_result(rid, pid):
 	view.add_line(figlet.get_figlet('Pending'))
 
 	head = ['Result', 'Time', 'Memory', 'Score', 'Description']
-	detail = [['Waiting', '', '', '', ''] for _ in range(testcases)]
+	detail = [['Pending', '', '', '', ''] for _ in range(testcases)]
+	started = False
 
 	view.add_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
 
@@ -307,12 +308,17 @@ def fetch_result(rid, pid):
 
 			if view.compile_msg_height == 0 and len(msg['detail']['compile']['content']):
 				view.set_compile_msg(msg['detail']['compile']['content'])
+			if not started:
+				view.replace_figlet('Waiting')
+				for row in detail:
+					row[0] = 'Waiting'
 			if msg['status'] != 1:
 				if msg['status'] == 2:
 					for row in detail:
 						row[0] = 'Compile Error'
 						row[3] = '0'
 				view.replace_figlet(result_map[msg['status']])
+			started = True
 
 			view.update_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
 		elif msg['type'] == 'flush':
