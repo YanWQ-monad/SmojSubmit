@@ -38,6 +38,13 @@
 			"password": "",
 			"lang": [ "C++", "C", "Java", "Pascal", "Python" ],
 			"init_login": false
+		},
+		"luogu": {
+			"enable": false,
+			"username": "",
+			"password": "",
+			"lang": [ "C++", "C", "Java", "Pascal", "Python", "JavaScript", "Ruby", "Go", "Rust", "PHP", "C#", "Haskell", "Kotlin", "Scala", "Perl" ],
+			"init_login": false
 		}
 	}
 }

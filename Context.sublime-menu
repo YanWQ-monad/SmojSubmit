@@ -27,6 +27,11 @@
                 "caption": "BZOJ",
                 "command": "smoj_submit",
                 "args": { "type": "submit", "oj": "bzoj" }
+            },
+            {
+                "caption": "Luogu",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "luogu" }
             } // Remember add ',' here if you add your custom oj below
 
             /** OJ template **
