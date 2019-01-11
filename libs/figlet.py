@@ -5,6 +5,7 @@ import importlib
 
 figlet_link = {
 	'Accepted':              'AC',
+	'Unaccepted':            'UA',
 	'Wrong Answer':          'WA',
 	'Compile Error':         'CE',
 	'Time Limit Exceeded':   'TLE',
@@ -14,7 +15,9 @@ figlet_link = {
 	'SIGFPE Error':          'SE',
 	'Output Limit Exceeded': 'OLE',
 	'Restrict Function':     'RF',
-	'Presentation Error':    'PE'
+	'Presentation Error':    'PE',
+	'Pending':               'PD',
+	'Waiting':               'WT'
 }
 
 
