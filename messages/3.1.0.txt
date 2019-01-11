@@ -1,0 +1,11 @@
+SmojSubmit v3.1.0 Changelog:
+
+**NOTE:** Restarting Sublime Text may be required after upgrading.
+
+### Feature
+* **Support Luogu** (https://www.luogu.org/)
+* Add some phrases to figlet
+
+### Bug-fix
+* Return when submit failed (5263152)
+* Unify figlet format
