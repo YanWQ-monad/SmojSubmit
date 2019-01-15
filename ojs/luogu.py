@@ -36,6 +36,8 @@ submit_page_url = root_url + '/problem/ajax_submit'
 twoFA_url = root_url + '/login/send_unlock_email'
 unlock_url = root_url + '/login/unlock'
 
+o2_flag = '// luogu-judger-enable-o2\n'
+
 capt_re = re.compile(r'<meta name="csrf-token" content="(\d+:[\w=/+]+)">')
 testcase_re = re.compile(r'<small>#(\d+)</small>')
 
@@ -244,10 +246,14 @@ def submit(pid, code, lang):
 		log.error('Failed to submit: {}'.format(data['message']))
 		return None
 
+	o2 = code.startswith(o2_flag)
+	if o2:
+		code = code[len(o2_flag):]
+
 	payload = {
 		'lang': lang_map.get(lang, 0),
 		'code': code,
-		'enableO2': 0,
+		'enableO2': int(o2),
 		'verify': ''
 	}
 	payload = urllib.parse.urlencode(payload).encode()
