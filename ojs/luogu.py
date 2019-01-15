@@ -134,9 +134,17 @@ def merge_dict(x, y):
 
 def init(config):
 	global cookie, username, password, opener
+
 	cookie = http.cookiejar.CookieJar()
+	client_id = cfg.get_settings().get('oj').get('luogu').get('client_id', '')
+	uid = cfg.get_settings().get('oj').get('luogu').get('uid', '')
+	expires = str(int(time.time()) + 2592000)
+	cookie.set_cookie(http.cookiejar.Cookie(0, '__client_id', client_id, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
+	cookie.set_cookie(http.cookiejar.Cookie(0, '_uid', uid, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
+
 	handler = urllib.request.HTTPCookieProcessor(cookie)
 	opener = urllib.request.build_opener(handler)
+
 	username = config['username']
 	password = config['password']
 	if config.get('init_login', False):
@@ -231,6 +239,13 @@ def login():
 	resp = opener.open(r)
 	if resp.geturl() == unlock_url:
 		unlock_by_2FA()
+
+	cookie_dict = {item.name: item.value for item in cookie}
+	copy = cfg.get_settings().get('oj')
+	copy['luogu']['client_id'] = cookie_dict['__client_id']
+	copy['luogu']['uid'] = cookie_dict['_uid']
+	cfg.get_settings().set('oj', copy)
+	cfg.save()
 
 	return True
 

@@ -29,6 +29,9 @@ class Config(metaclass=Singleton):
 		for key in keys:
 			self.settings.add_on_change(key, self.on_change)
 
+	def save(self):
+		sublime.save_settings(self.name)
+
 	def on_change(self):
 		log.debug('Settings changed')
 		self.settings = sublime.load_settings(self.name)

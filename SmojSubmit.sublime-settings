@@ -43,6 +43,8 @@
 			"enable": false,
 			"username": "",
 			"password": "",
+			"client_id": "",
+			"uid": "",
 			"lang": [ "C++", "C", "Java", "Pascal", "Python", "JavaScript", "Ruby", "Go", "Rust", "PHP", "C#", "Haskell", "Kotlin", "Scala", "Perl" ],
 			"init_login": false
 		}
