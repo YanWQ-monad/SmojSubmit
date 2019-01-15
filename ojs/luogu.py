@@ -178,9 +178,9 @@ def captcha_input():
 
 
 def unlock_by_2FA():
-	code = None
 	init_msg = 'send_unlock_email'
 	while True:
+		code = None
 		def got_input(text=''):
 			nonlocal code
 			code = text
@@ -312,7 +312,7 @@ def fetch_result(rid, pid):
 					value['desc'].replace('\n', ' ') if value['desc'] else ''
 				]
 
-			if view.compile_msg_height == 0 and len(msg['detail']['compile']['content']):
+			if view.compile_msg_height == 0 and len(msg.get('detail', {}).get('compile', {}).get('content', '')):
 				view.set_compile_msg(msg['detail']['compile']['content'])
 			if not started:
 				view.replace_figlet('Waiting')
