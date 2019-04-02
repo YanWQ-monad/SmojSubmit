@@ -15,5 +15,5 @@ def freopen_filter(code, pid=None):
 	else:
 		result = re.sub(_fre_re, r'freopen("{}.\2"\3, "\4", std\5);'.format(pid), result)
 		result = re.sub(_cm1_re, r'\1\2'                                        , result)
-		result = re.sub(_cm2_re, r'\1\2\3'                                      , result)
+		result = re.sub(_cm2_re, r'\1\3'                                        , result)
 	return result
