@@ -52,7 +52,7 @@ def check_login(resp=None):
 	if resp is None:
 		r = urllib.request.Request(url=root_url, headers=headers)
 		resp = opener.open(r)
-	text = resp.read().decode()
+	text = resp.read().decode('gbk')
 	if text.find('<img alt="Author" src="/images/user.png" border=0 height=18 width=18> {}'.format(username)) == -1:
 		return True
 
@@ -133,7 +133,7 @@ def load_result(username, pid):
 
 		r = urllib.request.Request(url=url, headers=headers)
 		resp = opener.open(r)
-		text = resp.read().decode()
+		text = resp.read().decode('gbk')
 		match = re.search(_res_re.format(pid, pid, username, username), text, flags=re.DOTALL)
 
 		main = match.group(7)
@@ -152,7 +152,7 @@ def load_result(username, pid):
 		main = 'Compile Error'
 		r = urllib.request.Request(url=cmpl_url.format(jid), headers=headers)
 		resp = opener.open(r)
-		text = resp.read().decode()
+		text = resp.read().decode('gbk')
 		cpl_info = html.parser.HTMLParser().unescape(_cpl_re.findall(text)[0]).replace('\r', '')
 		
 	main = main.replace('<br>', ' ')
