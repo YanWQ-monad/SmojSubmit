@@ -27,19 +27,20 @@ password = None
 
 root_url = 'https://www.luogu.org'
 websocket_url = 'wss://ws.luogu.org/ws'
-captcha_url = root_url + '/download/captcha'
-login_url = root_url + '/login/loginpage'
-show_problem_url = root_url + '/problemnew/show/'
-show_record_url = root_url + '/recordnew/show/'
-submit_api_url = root_url + '/api/problem/submit/'
-submit_page_url = root_url + '/problem/ajax_submit'
-twoFA_url = root_url + '/login/send_unlock_email'
-unlock_url = root_url + '/login/unlock'
+captcha_url = root_url + '/api/verify/captcha?_t={:.4f}'
+login_url = root_url + '/api/auth/userPassLogin'
+login_page = root_url + '/auth/login'
+empty_url = root_url + '/404'
+unlock_url = root_url + '/api/auth/unlock'
+unlock_page = root_url + '/auth/unlock'
+show_problem_url = root_url + '/problem/{}'
+record_api_url = root_url + '/record/{}?_contentOnly=1'
+submit_api_url = root_url + '/api/problem/submit/{}'
 
 o2_flag = '// luogu-judger-enable-o2\n'
 
-capt_re = re.compile(r'<meta name="csrf-token" content="(\d+:[\w=/+]+)">')
-testcase_re = re.compile(r'<small>#(\d+)</small>')
+csrf_re = re.compile(r'<meta name="csrf-token" content="(\d+:[\w=/+]+)">')
+feInjection_re = re.compile(r'window\._feInjection = JSON.parse\(decodeURIComponent\("([-a-zA-Z0-9()@:%_\+.~#?&\/=]+)"\)\);')
 
 lang_map = {
 	'Auto': 0,
@@ -153,14 +154,27 @@ def init(config):
 
 def get_csrf_token(html=None):
 	if html is None:
-		r = urllib.request.Request(url=root_url, headers=headers)
+		r = urllib.request.Request(url=empty_url, headers=headers)
 		resp = opener.open(r)
 		html = resp.read().decode()
-	return capt_re.findall(html)[0]
+	return csrf_re.findall(html)[0]
+
+
+def getFeInjection():
+	r = urllib.request.Request(url=empty_url, headers=headers)
+	resp = opener.open(r)
+	html = resp.read().decode()
+	uri = feInjection_re.findall(html)[0]
+	jsn = urllib.parse.unquote(uri)
+	injection = json.loads(jsn)
+	log.trace('feInjection = {}'.format(injection))
+
+	return injection
 
 
 def captcha_input():
-	r = urllib.request.Request(url=captcha_url, headers=headers)
+	timestamp = time.time() * 1000
+	r = urllib.request.Request(url=captcha_url.format(timestamp), headers=headers)
 	resp = opener.open(r)
 
 	file = tempfile.NamedTemporaryFile('wb', suffix='.png', delete=False)
@@ -186,8 +200,13 @@ def captcha_input():
 
 
 def unlock_by_2FA():
-	init_msg = 'send_unlock_email'
+	init_msg = ''
 	while True:
+		headers2 = merge_dict(headers, {
+			'Referer': unlock_page,
+			'X-CSRF-Token': get_csrf_token(),
+			'Content-Type': 'application/json'
+		})
 		code = None
 		def got_input(text=''):
 			nonlocal code
@@ -195,50 +214,49 @@ def unlock_by_2FA():
 		sublime.active_window().show_input_panel('[{}] Enter 2FA code'.format(PLUGIN_NAME), init_msg, got_input, None, got_input)
 		while code is None:
 			time.sleep(0.1)
-		if code == 'send_unlock_email':
-			headers2 = merge_dict(headers, {'Referer': unlock_url, 'X-CSRF-Token': get_csrf_token()})
-			r = urllib.request.Request(url=twoFA_url, headers=headers2, method='POST')
-			data = json.loads(opener.open(r).read().decode())
-			if data.code != 200:
-				log.error('Send unlock email failed: {}'.format(data.message))
-			else:
-				init_msg = 'Send email successful'
-			continue
-		payload = {'csrf-token': get_csrf_token(), 'code': code}
-		payload = urllib.parse.urlencode(payload).encode()
-		r = urllib.request.Request(url=unlock_url, headers=merge_dict(headers, dict(Referer=unlock_url)), data=payload)
-		resp = opener.open(r)
-		if resp.geturl() == unlock_url:
+		if len(code) == 0 or code == 'exit':
+			return False
+		payload = {'code': code}
+		payload = json.dumps(payload).encode()
+		r = urllib.request.Request(url=unlock_url, headers=headers2, data=payload)
+		try:
+			resp = opener.open(r)
+			break
+		except urllib.error.HTTPError as e:
+			log.trace('{}'.format(e.read()))
 			init_msg = '2FA code is not correct'
-			continue
-		break
+
+	return True
 
 
 def login():
 	payload = {
 		'username': username,
 		'password': password,
-		'cookie': '3',
-		'redirect': '',
-		'verify': captcha_input()
+		'captcha': captcha_input()
 	}
-	payload = urllib.parse.urlencode(payload).encode()
+	log.trace('{}'.format(payload))
+	payload = json.dumps(payload).encode()
 	headers2 = merge_dict(headers, {
-		'Referer': login_url,
-		'X-CSRF-Token': get_csrf_token()
+		'Referer': login_page,
+		'X-CSRF-Token': get_csrf_token(),
+		'Content-Type': 'application/json'
 	})
+	log.trace('{}'.format(headers2))
 
 	r = urllib.request.Request(url=login_url, data=payload, headers=headers2)
-	resp = opener.open(r)
-	data = json.loads(resp.read().decode())
-	if data['code'] != 200:
-		log.error('Login to Luogu failed: {}'.format(data['message']))
+	try:
+		resp = opener.open(r)
+		data = json.loads(resp.read().decode())
+	except urllib.error.HTTPError as e:
+		data = json.loads(e.read().decode())
+	log.trace('{}'.format(data))
+	if 'status' in data:
+		log.error('Login to Luogu failed: {}'.format(data['errorMessage']))
 		return False
 
-	r = urllib.request.Request(url=root_url, headers=merge_dict(headers, dict(Referer=login_url)))
-	resp = opener.open(r)
-	if resp.geturl() == unlock_url:
-		unlock_by_2FA()
+	if data['locked']:
+		return unlock_by_2FA()
 
 	cookie_dict = {item.name: item.value for item in cookie}
 	copy = cfg.get_settings().get('oj')
@@ -251,15 +269,10 @@ def login():
 
 
 def submit(pid, code, lang):
-	r = urllib.request.Request(url=submit_page_url+'?pid={}'.format(pid), headers=merge_dict(headers, dict(Referer=show_problem_url + pid)))
-	resp = opener.open(r)
-	data = json.loads(resp.read().decode())
-	if data['code'] == 0:
+	injection = getFeInjection()
+	if 'currentUser' not in injection:
 		if not login():
 			return None
-	elif data['code'] != 201:
-		log.error('Failed to submit: {}'.format(data['message']))
-		return None
 
 	o2 = code.startswith(o2_flag)
 	if o2:
@@ -273,24 +286,29 @@ def submit(pid, code, lang):
 	}
 	payload = urllib.parse.urlencode(payload).encode()
 	headers2 = merge_dict(headers, {
-		'Referer': show_problem_url + pid,
+		'Referer': show_problem_url.format(pid),
 		'X-CSRF-Token': get_csrf_token()
 	})
 
-	r = urllib.request.Request(url=submit_api_url + pid, data=payload, headers=headers2)
+	r = urllib.request.Request(url=submit_api_url.format(pid), data=payload, headers=headers2)
 	resp = opener.open(r)
 	data = json.loads(resp.read().decode())
 	if data['status'] != 200:
-		log.error('Failed to submit: {}'.format(data.get('message', '-')))
+		log.error('Failed to submit: {}'.format(data.get('errorMessage', '-')))
 		return None
 
 	fetch_result(str(data['data']['rid']), pid)
 
 
 def fetch_result(rid, pid):
-	r = urllib.request.Request(url=show_record_url + rid, headers=merge_dict(headers, dict(Referer=show_problem_url + pid)))
-	html = opener.open(r).read().decode()
-	testcases = len(testcase_re.findall(html))
+	r = urllib.request.Request(url=record_api_url.format(rid), headers=merge_dict(headers, dict(Referer=show_problem_url.format(pid))))
+	data = json.loads(opener.open(r).read().decode())
+	testcases_count = 0
+	testcases_group = data['currentData']['testCaseGroup']
+	if isinstance(testcases_group, dict):
+		testcases_group = testcases_group.values()
+	for testcases in testcases_group:
+		testcases_count = max(testcases_count, max(testcases))
 
 	cookies = ';'.join(['{}={}'.format(item.name, item.value) for item in cookie])
 	ws = websocket.create_connection(websocket_url, sslopt={'cert_reqs': ssl.CERT_NONE}, cookie=cookies)
@@ -304,7 +322,7 @@ def fetch_result(rid, pid):
 	view.add_line(figlet.get_figlet('Pending'))
 
 	head = ['Result', 'Time', 'Memory', 'Score', 'Description']
-	detail = [['Pending', '', '', '', ''] for _ in range(testcases)]
+	detail = [['Pending', '', '', '', ''] for _ in range(testcases_count)]
 	started = False
 
 	view.add_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
@@ -313,37 +331,42 @@ def fetch_result(rid, pid):
 		msg = json.loads(ws.recv())
 		log.trace('{}'.format(msg))
 		if msg['type'] == 'status_push':
-			for (key, value) in msg['detail'].items():
-				if not key.startswith('case'):
-					continue
-				index = int(key[4:]) - 1
-				if detail[index][1] != '':
-					continue
-				detail[index] = [
-					result_map.get(value['flag'], str(value['flag'])),
-					str(value['time']) + 'ms',
-					str(value['memory']) + 'KB',
-					str(value['score']),
-					value['desc'].replace('\n', ' ') if value['desc'] else ''
-				]
+			record = msg['record']
+			if 'testcases' in record['detail']:
+				for index, testcase in record['detail']['testcases'].items():
+					index = int(index) - 1
+					if detail[index][1] != '':
+						continue
+					detail[index] = [
+						result_map.get(testcase['status'], str(testcase['status'])),
+						str(testcase['time']) + 'ms',
+						str(testcase['memory']) + 'KB',
+						str(testcase['score']),
+						testcase['message'].replace('\n', ' ') if testcase['message'] else ''
+					]
 
-			if view.compile_msg_height == 0 and len(msg.get('detail', {}).get('compile', {}).get('content', '')):
-				view.set_compile_msg(msg['detail']['compile']['content'])
+			if view.compile_msg_height == 0 and len(record.get('detail', {}).get('compile', {}).get('content', '')):
+				view.set_compile_msg(record['detail']['compile']['content'])
+
 			if not started:
 				view.replace_figlet('Waiting')
 				for row in detail:
 					row[0] = 'Waiting'
-			if msg['status'] != 1:
-				if msg['status'] == 2:
+			started = True
+
+			if record['status'] != 1:
+				if record['status'] == 2:
 					for row in detail:
 						row[0] = 'Compile Error'
 						row[3] = '0'
-				view.replace_figlet(result_map[msg['status']])
-			started = True
+				view.replace_figlet(result_map[record['status']])
 
 			view.update_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
 		elif msg['type'] == 'flush':
 			break
+
+	leave_data = dict(type='disconnect_channel', channel='record.track', channel_param=rid)
+	ws.send(json.dumps(leave_data, separators=(',', ':')))
 	ws.close()
 
 
