@@ -1,32 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import http.cookiejar
-import urllib.request
 import urllib.parse
-import html.parser
-import sublime
+import html.parser as parser
 import time
 import re
 
 from ..libs import logging as log
 from ..libs import middleware
-from ..libs import printer
-from ..libs import config
+from . import OjModule, abort_when_false
 
-
-username = None
-password = None
-opener = None
-headers = None
-
-root_url = 'http://acm.hdu.edu.cn'
-sign_url = root_url + '/userloginex.php?action=login'
-post_url = root_url + '/submit.php?action=submit'
-rest_url = root_url + '/status.php'
-cmpl_url = root_url + '/viewerror.php?rid={}'
-
-_cpl_re = re.compile(r'<pre>(.*)</pre>', flags=re.DOTALL)
-_res_re = r'<tr (bgcolor=#D7EBFF )?align=center ><td height=22px>(\d+)</td><td>([0-9\-: ]+)</td><td>(<a (.*) target=_blank>)?<font color=(#?[0-9a-zA-Z]+)>([0-9a-zA-Z<>()_ ]+)</font>(</a>)?</td><td><a href="/showproblem\.php\?pid={}">{}</a></td><td>(\d+)MS</td><td>(\d+)K</td><td><a href="/viewcode\.php\?rid=(\d+)"  ?target=_blank>(\d+) B</td><td>([A-Za-z\+#]+)</td><td class=fixedsize><a href="/userstatus\.php\?user={}">{}</a></td></tr>'
 
 lang_map = {
 	'C++': 0, # G++
@@ -37,136 +19,115 @@ lang_map = {
 }
 
 
-def init(config):
-	global username
-	global password
-	username = config['username']
-	password = config['password']
-	if config.get('init_login', False):
-		login(username, password)
+class HduModule(OjModule):
+	name = 'hdu'
+	display_name = 'HDU'
+	result_header = ['Result', 'Time', 'Memory']
+	support_languages = [ 'C++', 'C', 'Java', 'Pascal', 'C#' ]
 
+	root_url = 'http://acm.hdu.edu.cn'
+	login_url = root_url + '/userloginex.php?action=login'
+	submit_url = root_url + '/submit.php?action=submit'
+	result_url = root_url + '/status.php?{}'
+	compile_message_url = root_url + '/viewerror.php?rid={}'
 
-def check_login(resp=None):
-	if opener is None:
-		return True
-	if resp is None:
-		r = urllib.request.Request(url=root_url, headers=headers)
-		resp = opener.open(r)
-	text = resp.read().decode('gbk')
-	if text.find('<img alt="Author" src="/images/user.png" border=0 height=18 width=18> {}'.format(username)) == -1:
-		return True
+	result_regex_r = r'<tr (bgcolor=#D7EBFF )?align=center ><td height=22px>(\d+)</td><td>([0-9\-: ]+)</td><td>(<a (.*) target=_blank>)?<font color=(#?[0-9a-zA-Z]+)>([0-9a-zA-Z<>()_ ]+)</font>(</a>)?</td><td><a href="/showproblem\.php\?pid={pid}">{pid}</a></td><td>(\d+)MS</td><td>(\d+)K</td><td><a href="/viewcode\.php\?rid=(\d+)"  ?target=_blank>(\d+) B</td><td>([A-Za-z\+#]+)</td><td class=fixedsize><a href="/userstatus\.php\?user={username}">{username}</a></td></tr>'
+	compile_message_regex = re.compile(r'<pre>(.*)</pre>', flags=re.DOTALL)
 
+	def init(self, config):
+		self.username = config['username']
+		self.password = config['password']
+		self.headers = config['headers']
+		if config.get('init_login', False):
+			self.login()
 
-def login(username, password):
-	global opener
-	cookie  = http.cookiejar.CookieJar()
-	handler = urllib.request.HTTPCookieProcessor(cookie)
-	opener  = urllib.request.build_opener(handler)
+	def check_login(self):
+		if self.opener is None:
+			return False
+		html, resp = self.get(self.root_url, self.headers)
+		return html.find('<img alt="Author" src="/images/user.png" border=0 height=18 width=18> {}'.format(self.username)) != -1
 
-	values  = {
-		'username': username,
-		'userpass': password,
-		'login': 'Sign In'
-	}
+	def login(self):
+		self.opener, _ = self.create_opener()
 
-	r = urllib.request.Request(url=sign_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	if check_login(resp):
-		sublime.status_message('Login to HDU fail')
-		log.error('Login to HDU fail')
-		return False
-	else:
-		sublime.status_message('Login to HDU OK')
-		log.info('Login to HDU: OK')
-		return True
+		values = {
+			'username': self.username,
+			'userpass': self.password,
+			'login': 'Sign In'
+		}
 
-
-def submit(pid, code, lang):
-	if check_login():
-		sublime.status_message('Logging in to HDU...')
-		if not login(username, password):
-			log.error('Submit fail: Cannot log in')
-			return None
-	lang = lang_map[lang]
-	code = middleware.freopen_filter(code)
-
-	sublime.status_message('Submitting code to HDU...')
-	log.debug             ('Submitting code to HDU...')
-
-	values  = {
-		'action': 'submit',
-		'check': '0',
-		'problemid': str(pid),
-		'language': lang,
-		'usercode': code
-	}
-	r = urllib.request.Request(url=post_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	if resp.url.find('status.php') == -1:
-		if resp.url.find('userloginex.php') != -1:
-			sublime.status_message('Submit Fail: Invalid login')
-			log.warning('Submit Fail: Invalid login')
+		html, resp = self.post(self.login_url, values, self.headers)
+		login_status = self.check_login()
+		if login_status:
+			message = 'Login to HDU OK'
 		else:
-			sublime.status_message('Submit Fail')
-			log.warning('Submit Fail')
-		return False
-	else:
-		sublime.status_message('Submit OK, fetching result...')
-		log.info('Submit OK')
+			message = 'Login to HDU fail'
+		self.set_status(message)
+		log.info(message)
+		return login_status
 
-	fetch_result(username, pid)
+	@abort_when_false
+	def submit(self, runtime):
+		language = lang_map[runtime.language]
+		code = middleware.freopen_filter(runtime.code)
 
+		values  = {
+			'action': 'submit',
+			'check': '0',
+			'problemid': str(runtime.pid),
+			'language': language,
+			'usercode': code
+		}
+		html, resp = self.post(self.submit_url, values, self.headers)
+		if resp.url.find('status.php') == -1:
+			if resp.url.find('userloginex.php') != -1:
+				message = 'Submit Fail: Invalid login'
+			else:
+				message = 'Submit Fail'
+			self.set_status(message)
+			log.warning(message)
+			return False
+		else:
+			self.set_status('Submit OK, fetching result...')
+			log.info('Submit OK')
 
-def load_result(username, pid):
-	values = {
-		'first': '',
-		'pid': str(pid),
-		'user': username,
-		'lang': '0',
-		'status': '0'
-	}
-	url = rest_url + '?' + urllib.parse.urlencode(values)
+	def load_result(self, runtime):
+		values = {
+			'first': '',
+			'pid': str(runtime.pid),
+			'user': self.username,
+			'lang': '0',
+			'status': '0'
+		}
+		url = self.result_url.format(urllib.parse.urlencode(values))
+		result_regex = re.compile(self.result_regex_r.format(pid=runtime.pid, username=self.username), flags=re.DOTALL)
 
-	while True:
-		sublime.status_message('Waiting for judging...')
-		time.sleep(1)
+		while True:
+			self.set_status('Waiting for judging...')
+			time.sleep(1)
 
-		r = urllib.request.Request(url=url, headers=headers)
-		resp = opener.open(r)
-		text = resp.read().decode('gbk')
-		match = re.search(_res_re.format(pid, pid, username, username), text, flags=re.DOTALL)
+			html, resp = self.get(url, self.headers)
+			match = result_regex.search(html)
 
-		main = match.group(7)
-		if main not in  ['Compiling', 'Running', 'Queuing']:
-			break
+			result = match.group(7)
+			if result not in ['Compiling', 'Running', 'Queuing']:
+				break
 
-	sublime.status_message('Loading result...')
-	log.debug             ('Loading result...')
+		message = 'Loading result...'
+		self.set_status(message)
+		log.debug(message)
 
-	jid = match.group(2)
-	_time = match.group(9) + ' ms'
-	memory = match.group(10) + ' KB'
-	cpl_info = None
+		result = result.replace('<br>', ' ')
+		judge_id = match.group(2)
+		time_ = match.group(9) + ' ms'
+		memory = match.group(10) + ' KB'
+		detail = [ result, time_, memory ]
 
-	if main == 'Compilation Error':
-		main = 'Compile Error'
-		r = urllib.request.Request(url=cmpl_url.format(jid), headers=headers)
-		resp = opener.open(r)
-		text = resp.read().decode('gbk')
-		cpl_info = html.parser.HTMLParser().unescape(_cpl_re.findall(text)[0]).replace('\r', '')
-		
-	main = main.replace('<br>', ' ')
-	detail = [ main, _time, memory ]
+		if result == 'Compilation Error':
+			result = 'Compile Error'
+			html, resp = self.get(self.compile_message_url.format(judge_id), self.headers)
+			runtime.judge_compile_message = parser.HTMLParser().unescape(self.compile_message_regex.findall(html)[0]).replace('\r', '')
 
-	return main, cpl_info, detail
-
-
-def fetch_result(username, pid):
-	head = ['Result', 'Time', 'Memory']
-	main, cpl_info, detail = load_result(username, pid)
-	figlet = 'Runtime Error' if main.startswith('Runtime Error') else main
-	printer.print_result(head, [ detail ], figlet, main, cpl_info, pid)
-
-
-cfg = config.Config()
-headers = cfg.get_settings().get('headers')
+		runtime.judge_detail = [ detail ]
+		runtime.judge_result = result
+		runtime.judge_score = 100 if result == 'Accepted' else 0

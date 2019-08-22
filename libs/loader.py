@@ -18,13 +18,3 @@ class MonadApplicationLoader(sublime_plugin.ApplicationCommand):
 
 	def delay_init(self):
 		pass
-
-
-def oj_call(name, method_name, *args, **kw):
-	oj = importlib.import_module('..ojs.' + name, __package__)
-	try:
-		func = getattr(oj, method_name)
-		log.trace('Calling \'{}\' {}()'.format(name, method_name))
-		tm.call_func_thread(func, *args, **kw)
-	except AttributeError:
-		log.error('\'{}\' doesn\'t have such a method: {}'.format(name, method_name))

@@ -12,40 +12,30 @@
 	"default_oj": null,
 	"oj": {
 		"smoj": {
-			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++" ],
 			"init_login": false
 		},
 		"poj": {
-			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++", "C", "Java", "Pascal" ],
 			"init_login": false
 		},
 		"hdu": {
-			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++", "C", "Java", "Pascal", "C#" ],
 			"init_login": false
 		},
 		"bzoj": {
-			"enable": false,
 			"username": "",
 			"password": "",
-			"lang": [ "C++", "C", "Java", "Pascal", "Python" ],
 			"init_login": false
 		},
 		"luogu": {
-			"enable": false,
 			"username": "",
 			"password": "",
 			"client_id": "",
 			"uid": "",
-			"lang": [ "C++", "C", "Java", "Pascal", "Python", "JavaScript", "Ruby", "Go", "Rust", "PHP", "C#", "Haskell", "Kotlin", "Scala", "Perl" ],
 			"init_login": false
 		}
 	}

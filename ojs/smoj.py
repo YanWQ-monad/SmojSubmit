@@ -1,31 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import http.cookiejar
-import urllib.request
-import urllib.parse
-import sublime
 import json
 import time
 import re
 
 from ..libs import logging as log
 from ..libs import middleware
-from ..libs import printer
-from ..libs import config
+from . import OjModule, abort_when_false
 
-
-username = None
-password = None
-opener = None
-headers = None
-
-root_url = 'http://10.3.35.134'
-post_url = root_url + '/submit_problem?pid={}'
-rest_url = root_url + '/allmysubmits'
-detl_url = root_url + '/showresult'
-
-_res_re = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="(\d{4,})"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
-_isw_re = re.compile(r'<td><a href="showproblem\?id=\d{4,}">\d{4,}</a></td>\s*<td>([a-zA-Z ]*)</td>')
 
 result_link = {
 	'Accept': 'Accepted',
@@ -42,160 +24,131 @@ result_link = {
 }
 
 
-def init(config):
-	global username
-	global password
-	username = config['username']
-	password = config['password']
-	if config.get('init_login', False):
-		login(username, password)
+class SmojModule(OjModule):
+	name = 'smoj'
+	display_name = 'SMOJ'
+	result_header = ['Result', 'Score', 'Time', 'Memory']
+	support_languages = [ 'C++' ]
 
+	root_url = 'http://smoj.nhedu.net'
+	login_url = root_url + '/login'
+	post_url = root_url + '/submit_problem?pid={}'
+	result_url = root_url + '/allmysubmits'
+	detail_url = root_url + '/showresult'
 
-def check_login(resp=None):
-	if opener is None:
-		return 'Object "opener" is None'
-	if resp is None:
-		r = urllib.request.Request(url=root_url, headers=headers)
-		resp = opener.open(r)
-	if resp.url.find('/login') != -1:
-		return resp.read().decode()[:100]
+	status_regex = re.compile(r'<td><a href="showproblem\?id=\d{4,}">\d{4,}</a></td>\s*<td>([a-zA-Z ]*)</td>')
+	meta_regex = re.compile(r'<td><a href="#" id="result"><input type="hidden" value="(.*)"><input type="hidden" value="\d{4,}"><input type="hidden" id="submitTime" value="(\d+)">((\d+)/(\d+)|点击查看)</a></td>')
 
+	def init(self, config):
+		self.username = config['username']
+		self.password = config['password']
+		self.headers = config['headers']
+		if config.get('init_login', False):
+			self.login()
 
-def login(username, password):
-	sublime.status_message('Logging in to SMOJ...')
-	global opener
-	cookie  = http.cookiejar.CookieJar()
-	handler = urllib.request.HTTPCookieProcessor(cookie)
-	opener  = urllib.request.build_opener(handler)
+	def login(self):
+		self.set_status('Logging in to SMOJ...')
+		self.opener, _ = self.create_opener()
 
-	values  = {
-		'redirect_to': '',
-		'username': username,
-		'password': password
-	}
+		values = {
+			'redirect_to': '',
+			'username': self.username,
+			'password': self.password
+		}
 
-	r = urllib.request.Request(url=root_url+'/login', data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	info = check_login(resp)
-	if info:
-		sublime.status_message('Login to SMOJ fail: {}'.format(info))
-		log.error('Login to SMOJ fail: {}'.format(info))
-		return False
-	else:
-		sublime.status_message('Login to SMOJ OK')
-		log.info('Login to SMOJ: OK')
-		return True
-
-
-def submit(pid, code, lang):
-	if check_login():
-		if not login(username, password):
-			log.error('Submit fail: Cannot login')
-			return False
-	assert lang == 'C++' or lang == 'C'
-
-	code = middleware.freopen_filter(code, pid)
-	sublime.status_message('Submitting code to SMOJ...')
-	log.debug             ('Submitting code to SMOJ...')
-
-	values  = {
-		'pid': str(pid),
-		'language': '.cpp',
-		'code': code
-	}
-	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	if resp.url.find('allmysubmits') == -1:
-		if resp.url.find('login') != -1:
-			sublime.status_message('Submit Fail: Invalid login')
-			log.warning('Submit Fail. Redirect to {}'.format(resp.url))
+		html, resp = self.post(self.login_url, values, self.headers)
+		if len(html) < 100:
+			message = 'Login to SMOJ fail: {}'.format(info)
 		else:
-			info = resp.read().decode()[:100]
-			sublime.status_message('Submit Fail: {}'.format(info))
-			log.warning('Submit Fail: {}'.format(info))
-		return False
-	else:
-		sublime.status_message('Submit OK, fetching result...')
-		log.info('Submit OK')
+			message = 'Login to SMOJ OK'
+		self.set_status(message)
+		log.error(message)
+		return len(html) >= 100  # same as the if condition
 
-	fetch_result()
+	def check_login(self):
+		if self.opener is None:
+			return False
+		html, resp = self.get(self.root_url, self.headers)
+		return resp.url.find('/login') == -1
 
+	@abort_when_false
+	def submit(self, runtime):
+		assert runtime.language in ['C++', 'C']
+		code = middleware.freopen_filter(runtime.code, runtime.pid)
 
-def wait_for_judge():
-	name, pid, stamp, score = None, None, None, None
-	while True:
-		time.sleep(1)
-		sublime.status_message('Waiting for judging...')
-		r = urllib.request.Request(url=rest_url, headers=headers)
-		resp = opener.open(r)
-		html = resp.read().decode()
-		m = _isw_re.search(html)
-		if name is None:
-			match = _res_re.search(html)
-			name  = match.group(1)
-			pid   = match.group(2)
-			stamp = match.group(3)
-		if m.group(1) == 'done':
-			match = _res_re.search(html)
-			score = match.group(4)
-			break
-	return name, pid, stamp, score
+		values = {
+			'pid': str(runtime.pid),
+			'language': '.cpp',
+			'code': code
+		}
 
+		html, resp = self.post(self.post_url.format(runtime.pid), values, self.headers)
+		if resp.url.find('allmysubmits') == -1:
+			if html.startswith('<html>'):
+				message = 'Submit failed. Redirected to {}'.format(resp.url)
+			else:
+				message = 'Submit failed: {}'.format(html)
+			self.set_status(message)
+			log.error(message)
+			return False
+		else:
+			self.set_status('Submit OK, fetching result...')
+			log.info('Submit OK')
 
-def get_status_name(st):
-	if st[:3] == 'goc':
-		st = st[3:]
-	try:
-		if len(st) >= 26 and st[:26] == 'monitor_invalid_syscall_id':
-			return 'Restrict Function'
-		if len(st) >= 21 and st[:21] == '测评机出错--无法清空沙箱或者无法复制文件':
-			return 'No Data'
-		return result_link[st]
-	except KeyError:
-		return st
+	@abort_when_false
+	def load_result(self, runtime):
+		timestamp = None
+		while True:
+			time.sleep(1)
+			self.set_status('Waiting for judging...')
+			html, resp = self.get(self.result_url, self.headers)
+			if timestamp is None:
+				match = self.meta_regex.search(html)
+				timestamp = match.group(2)
+			if self.status_regex.search(html).group(1) == 'done':
+				match = self.meta_regex.search(html)
+				runtime.judge_score = match.group(3)
+				break
 
+		self.set_status('Loading result...')
+		values = {
+			'submitTime': timestamp,
+			'pid': runtime.pid,
+			'user': self.username
+		}
+		html, resp = self.post(self.detail_url, values, self.headers)
+		result = json.loads(html)
 
-def load_result(name, pid, stamp):
-	sublime.status_message('Loading result...')
+		if result['result'] == 'OI_MODE':
+			self.set_status('This is an OI-MODE problem')
+			return False
 
-	values = {
-		'submitTime': stamp,
-		'pid': pid,
-		'user': name
-	}
-	r = urllib.request.Request(url=detl_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	result = json.loads(resp.read().decode())
-	if result['result'] == 'OI_MODE':
-		sublime.status_message('This is an OI-MODE problem')
-		return None, None, None
-	compile_info = None
-	try:
-		compile_info = result['compileInfo'][0]
-	except:
-		pass
+		runtime.judge_compile_message = \
+			result['compileInfo'][0] if len(result['compileInfo']) else None
 
-	temp = result['result'].replace('\n', '')
-	detail = [ item.split(':') for item in temp.split(';') ][:-1]
-	for row in detail:
-		row[0] = get_status_name(row[0])
-		row[2] = row[2].replace('不可用', 'NaN') + ' ms'
-		row[3] = row[3].replace('不可用', 'NaN') + ' KB'
+		data = result['result'].replace('\n', '')
+		detail = []
+		for testcase in data.split(';')[:-1]:
+			groups = testcase.split(':')
+			detail.append([
+				self._get_status_name(groups[0]),
+				groups[1],
+				groups[2].replace('不可用', 'NaN') + ' ms',
+				groups[3].replace('不可用', 'NaN') + ' KB'
+			])
 
-	non_ac_list = list(filter(lambda x: x != 'Accepted', [ item[0] for item in detail ]))
-	main = non_ac_list[0] if len(non_ac_list) else 'Accepted'
+		runtime.judge_result = \
+			([item[0] for item in detail if item[0] != 'Accepted'] + ['Accepted'])[0]
+		runtime.judge_detail = detail
 
-	return detail, main, compile_info
-
-
-def fetch_result():
-	head = ['Result', 'Score', 'Time', 'Memory']
-
-	name, pid, stamp, score = wait_for_judge()
-	detail, main, cpl_info = load_result(name, pid, stamp)
-	if main is not None:
-		printer.print_result(head, detail, main, score, cpl_info, pid)
-
-
-cfg = config.Config()
-headers = cfg.get_settings().get('headers')
+	def _get_status_name(self, status: str):
+		if status[:3] == 'goc':
+			status = status[3:]
+		try:
+			if status[:26] == 'monitor_invalid_syscall_id':
+				return 'Restrict Function'
+			if status[:21] == '测评机出错--无法清空沙箱或者无法复制文件':
+				return 'No Data'
+			return result_link[status]
+		except KeyError:
+			return status

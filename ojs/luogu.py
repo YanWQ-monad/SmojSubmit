@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import http.cookiejar
-import urllib.request
 import urllib.parse
 import websocket
 import tempfile
@@ -15,32 +14,11 @@ import re
 
 from ..libs import logging as log
 from ..main import PLUGIN_NAME
-from ..libs import middleware
 from ..libs import printer
 from ..libs import figlet
-from ..libs import config
+from ..libs import config as gconfig
+from . import OjModule, abort_when_false
 
-
-opener = None
-username = None
-password = None
-
-root_url = 'https://www.luogu.org'
-websocket_url = 'wss://ws.luogu.org/ws'
-captcha_url = root_url + '/api/verify/captcha?_t={:.4f}'
-login_url = root_url + '/api/auth/userPassLogin'
-login_page = root_url + '/auth/login'
-empty_url = root_url + '/404'
-unlock_url = root_url + '/api/auth/unlock'
-unlock_page = root_url + '/auth/unlock'
-show_problem_url = root_url + '/problem/{}'
-record_api_url = root_url + '/record/{}?_contentOnly=1'
-submit_api_url = root_url + '/api/problem/submit/{}'
-
-o2_flag = '// luogu-judger-enable-o2\n'
-
-csrf_re = re.compile(r'<meta name="csrf-token" content="(\d+:[\w=/+]+)">')
-feInjection_re = re.compile(r'window\._feInjection = JSON.parse\(decodeURIComponent\("([-a-zA-Z0-9()@:%_\+.~#?&\/=]+)"\)\);')
 
 lang_map = {
 	'Auto': 0,
@@ -133,242 +111,253 @@ def merge_dict(x, y):
 	return z
 
 
-def init(config):
-	global cookie, username, password, opener
+class LuoguModule(OjModule):
+	name = 'luogu'
+	display_name = 'Luogu'
+	post_type = 'json'
+	support_languages = [ 'C++', 'C', 'Java', 'Pascal', 'Python', 'JavaScript', 'Ruby', 'Go', 'Rust', 'PHP', 'C#', 'Haskell', 'Kotlin', 'Scala', 'Perl' ]
 
-	cookie = http.cookiejar.CookieJar()
-	client_id = cfg.get_settings().get('oj').get('luogu').get('client_id', '')
-	uid = cfg.get_settings().get('oj').get('luogu').get('uid', '')
-	expires = str(int(time.time()) + 2592000)
-	cookie.set_cookie(http.cookiejar.Cookie(0, '__client_id', client_id, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
-	cookie.set_cookie(http.cookiejar.Cookie(0, '_uid', uid, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
+	root_url = 'https://www.luogu.org'
+	websocket_url = 'wss://ws.luogu.org/ws'
+	captcha_url = root_url + '/api/verify/captcha?_t={:.4f}'
+	empty_url = root_url + '/404'
+	login_page = root_url + '/auth/login'
+	login_url = root_url + '/api/auth/userPassLogin'
+	record_api_url = root_url + '/record/{}?_contentOnly=1'
+	show_problem_url = root_url + '/problem/{}'
+	submit_api_url = root_url + '/api/problem/submit/{}'
+	unlock_page = root_url + '/auth/unlock'
+	unlock_url = root_url + '/api/auth/unlock'
 
-	handler = urllib.request.HTTPCookieProcessor(cookie)
-	opener = urllib.request.build_opener(handler)
+	o2_flag = '// luogu-judger-enable-o2\n'
 
-	username = config['username']
-	password = config['password']
-	if config.get('init_login', False):
-		login(username, password)
+	csrf_regex = re.compile(r'<meta name="csrf-token" content="(\d+:[a-zA-Z0-9/+]+=)">')
+	feinjection_regex = re.compile(r'window\._feInjection = JSON.parse\(decodeURIComponent\("([-a-zA-Z0-9()@:%_\+.~#?&\/=]+)"\)\);')
 
+	class RuntimeVariable(OjModule.RuntimeVariable):
+		# pid: str
+		# code: str
+		# language: str
+		# judge_id: str
 
-def get_csrf_token(html=None):
-	if html is None:
-		r = urllib.request.Request(url=empty_url, headers=headers)
-		resp = opener.open(r)
-		html = resp.read().decode()
-	return csrf_re.findall(html)[0]
+		def __init__(self, pid: str, code: str, language: str):
+			self.pid = pid
+			self.code = code
+			self.language = language
+			self.judge_id = None
 
+	def init(self, config):
+		self.cfg = gconfig.Config()
 
-def getFeInjection():
-	r = urllib.request.Request(url=empty_url, headers=headers)
-	resp = opener.open(r)
-	html = resp.read().decode()
-	uri = feInjection_re.findall(html)[0]
-	jsn = urllib.parse.unquote(uri)
-	injection = json.loads(jsn)
-	log.trace('feInjection = {}'.format(injection))
+		self.opener, self.cookie = self.create_opener()
+		client_id = self.cfg.get_settings().get('oj').get('luogu').get('client_id', '')
+		uid =self.cfg.get_settings().get('oj').get('luogu').get('uid', '')
+		expires = str(int(time.time()) + 2592000)
+		self.cookie.set_cookie(http.cookiejar.Cookie(0, '__client_id', client_id, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
+		self.cookie.set_cookie(http.cookiejar.Cookie(0, '_uid', uid, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
 
-	return injection
+		self.headers = merge_dict(config['headers'], dict(Origin=self.root_url))
+		self.username = config['username']
+		self.password = config['password']
+		if config.get('init_login', False):
+			self.login()
 
-
-def captcha_input():
-	timestamp = time.time() * 1000
-	r = urllib.request.Request(url=captcha_url.format(timestamp), headers=headers)
-	resp = opener.open(r)
-
-	file = tempfile.NamedTemporaryFile('wb', suffix='.png', delete=False)
-	file.write(resp.read())
-	file.close()
-
-	window = sublime.active_window()
-	view = window.open_file(file.name)
-	view.set_scratch(True)
-
-	cap = None
-	def got_input(text=''):
-		nonlocal cap
-		cap = text
-		window.focus_view(view)
-		window.run_command('close_file')
-		os.remove(file.name)
-	window.show_input_panel('[{}] Enter the captcha text'.format(PLUGIN_NAME), '', got_input, None, got_input)
-
-	while cap is None:
-		time.sleep(0.1)
-	return cap
-
-
-def unlock_by_2FA():
-	init_msg = ''
-	while True:
-		headers2 = merge_dict(headers, {
-			'Referer': unlock_page,
-			'X-CSRF-Token': get_csrf_token(),
-			'Content-Type': 'application/json'
-		})
-		code = None
-		def got_input(text=''):
-			nonlocal code
-			code = text
-		sublime.active_window().show_input_panel('[{}] Enter 2FA code'.format(PLUGIN_NAME), init_msg, got_input, None, got_input)
-		while code is None:
-			time.sleep(0.1)
-		if len(code) == 0 or code == 'exit':
+	def check_login(self):
+		if self.opener is None:
 			return False
-		payload = {'code': code}
-		payload = json.dumps(payload).encode()
-		r = urllib.request.Request(url=unlock_url, headers=headers2, data=payload)
-		try:
-			resp = opener.open(r)
-			break
-		except urllib.error.HTTPError as e:
-			log.trace('{}'.format(e.read()))
-			init_msg = '2FA code is not correct'
+		injection = self._get_feinjection()
+		return 'currentUser' in injection and injection['currentUser'] is not None
 
-	return True
+	def login(self):
+		payload = {
+			'username': self.username,
+			'password': self.password,
+			'captcha': self._get_captcha()
+		}
+		data, resp = self.post(self.login_url, payload, self.login_page)
+		data = json.loads(data)
+		log.trace('Login response: {}'.format(data))
 
+		if 'status' in data:
+			message = 'Login to Luogu failed: {}'.format(data['errorMessage'])
+			self.set_status(message)
+			log.warning(message)
+			return False
 
-def login():
-	payload = {
-		'username': username,
-		'password': password,
-		'captcha': captcha_input()
-	}
-	log.trace('{}'.format(payload))
-	payload = json.dumps(payload).encode()
-	headers2 = merge_dict(headers, {
-		'Referer': login_page,
-		'X-CSRF-Token': get_csrf_token(),
-		'Content-Type': 'application/json'
-	})
-	log.trace('{}'.format(headers2))
+		if data['locked']:
+			log.debug('Two-Factor Auth required')
+			if not self._unlock_with_2FA():
+				return False
 
-	r = urllib.request.Request(url=login_url, data=payload, headers=headers2)
-	try:
-		resp = opener.open(r)
-		data = json.loads(resp.read().decode())
-	except urllib.error.HTTPError as e:
-		data = json.loads(e.read().decode())
-	log.trace('{}'.format(data))
-	if 'status' in data:
-		log.error('Login to Luogu failed: {}'.format(data['errorMessage']))
-		return False
+		cookie_dict = {item.name: item.value for item in self.cookie}
+		copy = self.cfg.get_settings().get('oj')
+		copy['luogu']['client_id'] = cookie_dict['__client_id']
+		copy['luogu']['uid'] = cookie_dict['_uid']
+		log.trace('save cookie: {}'.format(copy['luogu']))
+		self.cfg.get_settings().set('oj', copy)
+		self.cfg.save()
 
-	if data['locked']:
-		return unlock_by_2FA()
+		return True
 
-	cookie_dict = {item.name: item.value for item in cookie}
-	copy = cfg.get_settings().get('oj')
-	copy['luogu']['client_id'] = cookie_dict['__client_id']
-	copy['luogu']['uid'] = cookie_dict['_uid']
-	cfg.get_settings().set('oj', copy)
-	cfg.save()
+	@abort_when_false
+	def submit(self, runtime):
+		code = runtime.code
+		o2 = code.startswith(self.o2_flag)
+		if o2:
+			code = code[len(self.o2_flag):]
 
-	return True
+		payload = {
+			'lang': lang_map.get(runtime.language, 0),
+			'code': code,
+			'enableO2': int(o2),
+			'verify': ''
+		}
+		data, resp = self.post(
+			self.submit_api_url.format(runtime.pid),
+			payload,
+			self.show_problem_url.format(runtime.pid),
+			post_type='urlencoded')
+		data = json.loads(data)
 
+		if data['status'] != 200:
+			message = 'Failed to submit: {}'.format(data.get('errorMessage', '-'))
+			log.warning(message)
+			self.set_status(message)
+			return False
 
-def submit(pid, code, lang):
-	injection = getFeInjection()
-	if 'currentUser' not in injection:
-		if not login():
-			return None
+		runtime.judge_id = str(data['data']['rid'])
 
-	o2 = code.startswith(o2_flag)
-	if o2:
-		code = code[len(o2_flag):]
+	def load_result(self, runtime):
+		data, resp = self.get(self.record_api_url.format(runtime.judge_id), merge_dict(self.headers, dict(Referer=self.show_problem_url.format(runtime.pid))))
+		data = json.loads(data)
+		testcases_group = data['currentData']['testCaseGroup']
+		if isinstance(testcases_group, dict):
+			testcases_group = testcases_group.values()
+		testcases_count = max([max(testcases) for testcases in testcases_group])
 
-	payload = {
-		'lang': lang_map.get(lang, 0),
-		'code': code,
-		'enableO2': int(o2),
-		'verify': ''
-	}
-	payload = urllib.parse.urlencode(payload).encode()
-	headers2 = merge_dict(headers, {
-		'Referer': show_problem_url.format(pid),
-		'X-CSRF-Token': get_csrf_token()
-	})
+		cookies = ';'.join(['{}={}'.format(item.name, item.value) for item in self.cookie])
+		ws = websocket.create_connection(
+			self.websocket_url, sslopt={'cert_reqs': ssl.CERT_NONE}, cookie=cookies)
+		join_data = dict(type='join_channel', channel='record.track', channel_param=runtime.judge_id)
+		ws.send(json.dumps(join_data, separators=(',', ':')))
 
-	r = urllib.request.Request(url=submit_api_url.format(pid), data=payload, headers=headers2)
-	resp = opener.open(r)
-	data = json.loads(resp.read().decode())
-	if data['status'] != 200:
-		log.error('Failed to submit: {}'.format(data.get('errorMessage', '-')))
-		return None
+		view = LuoguResultView('Result')
+		view.create_view()
 
-	fetch_result(str(data['data']['rid']), pid)
+		view.add_line('Problem ID : {}'.format(runtime.pid))
+		view.add_line(figlet.get_figlet('Pending'))
 
+		header = ['Result', 'Time', 'Memory', 'Score', 'Description']
+		detail = [['Pending', '', '', '', ''] for _ in range(testcases_count)]
+		started = False
 
-def fetch_result(rid, pid):
-	r = urllib.request.Request(url=record_api_url.format(rid), headers=merge_dict(headers, dict(Referer=show_problem_url.format(pid))))
-	data = json.loads(opener.open(r).read().decode())
-	testcases_count = 0
-	testcases_group = data['currentData']['testCaseGroup']
-	if isinstance(testcases_group, dict):
-		testcases_group = testcases_group.values()
-	for testcases in testcases_group:
-		testcases_count = max(testcases_count, max(testcases))
+		view.add_detail(*printer.pretty_format(header, copy.deepcopy(detail)))
 
-	cookies = ';'.join(['{}={}'.format(item.name, item.value) for item in cookie])
-	ws = websocket.create_connection(websocket_url, sslopt={'cert_reqs': ssl.CERT_NONE}, cookie=cookies)
-	join_data = dict(type='join_channel', channel='record.track', channel_param=rid)
-	ws.send(json.dumps(join_data, separators=(',', ':')))
+		while True:
+			msg = json.loads(ws.recv())
+			log.trace('websocket receive {}'.format(msg))
+			if msg['type'] == 'status_push':
+				record = msg['record']
+				if 'testcases' in record['detail']:
+					for index, testcase in record['detail']['testcases'].items():
+						index = int(index) - 1
+						if detail[index][1] != '':
+							continue
+						detail[index] = [
+							result_map.get(testcase['status'], str(testcase['status'])),
+							str(testcase['time']) + 'ms',
+							str(testcase['memory']) + 'KB',
+							str(testcase['score']),
+							testcase['message'].replace('\n', ' ') if testcase['message'] else ''
+						]
 
-	view = LuoguResultView('Result')
-	view.create_view()
+				if view.compile_msg_height == 0 and len(record.get('detail', {}).get('compile', {}).get('content', '')):
+					view.set_compile_msg(record['detail']['compile']['content'])
 
-	view.add_line('Problem ID : {}'.format(pid))
-	view.add_line(figlet.get_figlet('Pending'))
-
-	head = ['Result', 'Time', 'Memory', 'Score', 'Description']
-	detail = [['Pending', '', '', '', ''] for _ in range(testcases_count)]
-	started = False
-
-	view.add_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
-
-	while True:
-		msg = json.loads(ws.recv())
-		log.trace('{}'.format(msg))
-		if msg['type'] == 'status_push':
-			record = msg['record']
-			if 'testcases' in record['detail']:
-				for index, testcase in record['detail']['testcases'].items():
-					index = int(index) - 1
-					if detail[index][1] != '':
-						continue
-					detail[index] = [
-						result_map.get(testcase['status'], str(testcase['status'])),
-						str(testcase['time']) + 'ms',
-						str(testcase['memory']) + 'KB',
-						str(testcase['score']),
-						testcase['message'].replace('\n', ' ') if testcase['message'] else ''
-					]
-
-			if view.compile_msg_height == 0 and len(record.get('detail', {}).get('compile', {}).get('content', '')):
-				view.set_compile_msg(record['detail']['compile']['content'])
-
-			if not started:
-				view.replace_figlet('Waiting')
-				for row in detail:
-					row[0] = 'Waiting'
-			started = True
-
-			if record['status'] != 1:
-				if record['status'] == 2:
+				if not started:
+					view.replace_figlet('Waiting')
 					for row in detail:
-						row[0] = 'Compile Error'
-						row[3] = '0'
-				view.replace_figlet(result_map[record['status']])
+						row[0] = 'Waiting'
+				started = True
 
-			view.update_detail(*printer.pretty_format(head, copy.deepcopy(detail)))
-		elif msg['type'] == 'flush':
-			break
+				if record['status'] != 1:
+					if record['status'] == 2:
+						for row in detail:
+							row[0] = 'Compile Error'
+							row[3] = '0'
+					view.replace_figlet(result_map[record['status']])
 
-	leave_data = dict(type='disconnect_channel', channel='record.track', channel_param=rid)
-	ws.send(json.dumps(leave_data, separators=(',', ':')))
-	ws.close()
+				view.update_detail(*printer.pretty_format(header, copy.deepcopy(detail)))
+			elif msg['type'] == 'flush':
+				break
 
+		leave_data = dict(type='disconnect_channel', channel='record.track', channel_param=runtime.judge_id)
+		ws.send(json.dumps(leave_data, separators=(',', ':')))
+		ws.close()
 
-cfg = config.Config()
-headers = merge_dict(cfg.get_settings().get('headers'), dict(Origin=root_url))
+		raise Exception('Force Finish')
+
+	def post(self, url, data, referer, **kwargs):
+		headers = self.headers.copy()
+		headers['X-CSRF-Token'] = self._get_xsrf_token()
+		headers['Referer'] = referer
+		return super(LuoguModule, self).post(url, data, headers, **kwargs)
+
+	def _get_captcha(self):
+		url = self.captcha_url.format(time.time() * 1000)
+		data, resp = self.get(url, self.headers, decode=False)
+
+		file = tempfile.NamedTemporaryFile('wb', suffix='.png', delete=False)
+		file.write(data)
+		file.close()
+
+		window = sublime.active_window()
+		view = window.open_file(file.name)
+		view.set_scratch(True)
+
+		cap = None
+		def got_input(text=''):
+			nonlocal cap
+			cap = text
+			window.focus_view(view)
+			window.run_command('close_file')
+			os.remove(file.name)
+		window.show_input_panel('[{}] Enter the captcha text'.format(PLUGIN_NAME), '', got_input, None, got_input)
+
+		while cap is None:
+			time.sleep(0.1)
+		return cap
+
+	def _get_feinjection(self):
+		html, resp = self.get(self.empty_url, self.headers)
+		uri = self.feinjection_regex.findall(html)[0]
+		injection = json.loads(urllib.parse.unquote(uri))
+		log.trace('feInjection = {}'.format(injection))
+		return injection
+
+	def _get_xsrf_token(self):
+		html, resp = self.get(self.empty_url, self.headers)
+		return self.csrf_regex.findall(html)[0]
+
+	def _unlock_with_2FA(self):
+		initial_msg = ''
+		while True:
+			code = None
+			def got_input(text=''):
+				nonlocal code
+				code = text
+			sublime.active_window().show_input_panel('[{}] Enter 2FA code'.format(PLUGIN_NAME), initial_msg, got_input, None, got_input)
+
+			while code is None:
+				time.sleep(0.1)
+			if len(code) == 0 or code == 'exit':
+				return False
+
+			payload = {'code': code}
+			data, resp = self.post(self.unlock_url, payload, self.unlock_page)
+			data = json.loads(data)
+			if 'status' not in data:
+				break
+			initial_msg = '2FA code is not correct'
+
+		return True

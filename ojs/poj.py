@@ -1,35 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import http.cookiejar
-import urllib.request
 import urllib.parse
-import html.parser
-import sublime
+import html.parser as parser
 import base64
 import time
 import re
 
 from ..libs import logging as log
 from ..libs import middleware
-from ..libs import printer
-from ..libs import config
+from . import OjModule, abort_when_false
 
-
-username = None
-password = None
-opener = None
-headers = None
-
-root_url = 'http://poj.org'
-sign_url = root_url + '/login'
-post_url = root_url + '/submit'
-rest_url = root_url + '/status'
-
-_res_re = re.compile(r'<tr align=center><td>(.*)</td></tr>')
-_cpl_re = re.compile(r'<pre>(.*)</pre>', flags=re.DOTALL)
-reduce_1 = re.compile(r'<a href=showsource\?solution_id=(\d+) target=_blank>')
-reduce_2 = re.compile(r'<font color=([a-zA-Z]+)>')
-reduce_3 = re.compile(r'<a href=(.*) target=_blank>')
 
 lang_map = {
 	'C++': 0, # G++
@@ -39,148 +19,129 @@ lang_map = {
 }
 
 
-def init(config):
-	global username
-	global password
-	username = config['username']
-	password = config['password']
-	if config.get('init_login', False):
-		login(username, password)
+class PojModule(OjModule):
+	name = 'poj'
+	display_name = 'POJ'
+	result_header = ['Result', 'Time', 'Memory']
+	support_languages = [ 'C++', 'C', 'Java', 'Pascal' ]
 
+	root_url = 'http://poj.org'
+	login_url = root_url + '/login'
+	submit_url = root_url + '/submit'
+	result_url = root_url + '/status?{}'
+	compile_message_url = root_url + '/showcompileinfo?solution_id={}'
 
-def check_login(resp=None):
-	if opener is None:
-		return True
-	if resp is None:
-		r = urllib.request.Request(url=root_url, headers=headers)
-		resp = opener.open(r)
-	text = resp.read().decode()
-	if text.find('<b>{}</b>'.format(username)) == -1:
-		return True
+	result_regex = re.compile(r'<tr align=center><td>(.*)</td></tr>')
+	compile_message_regex = re.compile(r'<pre>(.*)</pre>', flags=re.DOTALL)
+	reduce_html_1_regex = re.compile(r'<a href=showsource\?solution_id=(\d+) target=_blank>')
+	reduce_html_2_regex = re.compile(r'<font color=([a-zA-Z]+)>')
+	reduce_html_3_regex = re.compile(r'<a href=(.*) target=_blank>')
 
+	def init(self, config):
+		self.username = config['username']
+		self.password = config['password']
+		self.headers = config['headers']
+		if config.get('init_login', False):
+			self.login()
 
-def login(username, password):
-	global opener
-	cookie  = http.cookiejar.CookieJar()
-	handler = urllib.request.HTTPCookieProcessor(cookie)
-	opener  = urllib.request.build_opener(handler)
+	def check_login(self):
+		if self.opener is None:
+			return False
+		html, resp = self.get(self.root_url, self.headers)
+		return html.find('<b>{}</b>'.format(self.username)) != -1
 
-	values  = {
-		'user_id1': username,
-		'password1': password,
-		'B1': 'login',
-		'url': '/'
-	}
+	def login(self):
+		self.opener, _ = self.create_opener()
 
-	r = urllib.request.Request(url=sign_url, data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	if check_login(resp):
-		sublime.status_message('Login to POJ fail')
-		log.error('Login to POJ fail')
-		return False
-	else:
-		sublime.status_message('Login to POJ OK')
-		log.info('Login to POJ: OK')
-		return True
+		values = {
+			'user_id1': self.username,
+			'password1': self.password,
+			'B1': 'login',
+			'url': '/'
+		}
+		html, resp = self.post(self.login_url, values, self.headers)
 
-
-def submit(pid, code, lang):
-	if check_login():
-		sublime.status_message('Logging in to POJ...')
-		if not login(username, password):
-			log.error('Submit fail: Cannot log in')
-			return None
-	lang = lang_map[lang]
-	code = middleware.freopen_filter(code)
-	code = base64.b64encode(code.encode()).decode()
-
-	sublime.status_message('Submitting code to POJ...')
-	log.debug             ('Submitting code to POJ...')
-
-	values  = {
-		'problem_id': str(pid),
-		'language': lang,
-		'source': code,
-		'submit': 'submit',
-		'encoded': '1'
-	}
-	r = urllib.request.Request(url=(post_url.format(pid)), data=urllib.parse.urlencode(values).encode(), headers=headers)
-	resp = opener.open(r)
-	text = resp.read().decode()
-	if resp.url.find('status') == -1:
-		if text.find('Please login first.') != -1:
-			sublime.status_message('Submit Fail: Invalid login')
-			log.warning('Submit Fail: Invalid login')
+		login_status = self.check_login()
+		if login_status:
+			message = 'Login to POJ OK'
 		else:
-			sublime.status_message('Submit Fail')
-			log.warning('Submit Fail')
-		return False
-	else:
-		sublime.status_message('Submit OK, fetching result...')
-		log.info('Submit OK')
+			message = 'Login to POJ fail'
+		self.set_status(message)
+		log.info(message)
+		return login_status
 
-	fetch_result(username, pid)
+	@abort_when_false
+	def submit(self, runtime):
+		language = lang_map[runtime.language]
+		code = middleware.freopen_filter(runtime.code)
+		code = base64.b64encode(code.encode()).decode()
 
+		values = {
+			'problem_id': str(runtime.pid),
+			'language': language,
+			'source': code,
+			'submit': 'submit',
+			'encoded': '1'
+		}
+		html, resp = self.post(self.submit_url.format(runtime.pid), values, self.headers)
+		if resp.url.find('status') == -1:
+			if html.find('Please login first.') != -1:
+				message = 'Submit Fail: Invalid login'
+			else:
+				message = 'Submit Fail'
+			self.set_status(message)
+			log.warning(message)
+			return False
+		else:
+			self.set_status('Submit OK, fetching result...')
+			log.info('Submit OK')
 
-def reduce_html(text, pid):
-	text = text.replace('<a href=userstatus?user_id={}>'.format(username), '')
-	text = text.replace('<a href=problem?id={}>'.format(pid), '')
-	text = text.replace('</font>', '')
-	text = text.replace('</a>', '')
-	text = re.sub(reduce_1, '', text)
-	text = re.sub(reduce_2, '', text)
-	text = re.sub(reduce_3, '', text)
+	def load_result(self, runtime):
+		running_statuses = \
+			['Compiling', 'Judging', 'Waiting', 'Queuing', 'Running & Judging']
+		values = {
+			'problem_id': str(runtime.pid),
+			'user_id': self.username,
+			'result': '',
+			'language': ''
+		}
+		url = self.result_url.format(urllib.parse.urlencode(values))
 
-	return text
+		while True:
+			self.set_status('Waiting for judging...')
+			time.sleep(1)
 
+			html, resp = self.get(url, self.headers)
+			html = self._reduce_html(html, runtime.pid)
 
-def load_result(username, pid):
-	values = {
-		'problem_id': str(pid),
-		'user_id': username,
-		'result': '',
-		'language': ''
-	}
-	url = rest_url + '?' + urllib.parse.urlencode(values)
+			row = self.result_regex.findall(html)[0].split('</td><td>')
+			result = row[3]
+			if result not in running_statuses:
+				break
 
-	while True:
-		sublime.status_message('Waiting for judging...')
-		time.sleep(1)
+		message = 'Loading result...'
+		self.set_status(message)
+		log.debug(message)
 
-		r = urllib.request.Request(url=url, headers=headers)
-		resp = opener.open(r)
-		text = resp.read().decode()
-		text = reduce_html(text, pid)
+		judge_id = row[0]
+		memory = row[4]
+		time_ = row[5]
+		detail = [ result, time_, memory ]
 
-		row = _res_re.findall(text)[0].split('</td><td>')
+		if result == 'Compile Error':
+			html, resp = self.get(self.compile_message_url.format(judge_id), self.headers)
+			runtime.judge_compile_message = \
+				parser.HTMLParser().unescape(self.compile_message_regex.findall(html)[0])
 
-		main = row[3]
-		if main not in  ['Compiling', 'Judging', 'Waiting', 'Queuing', 'Running & Judging']:
-			break
+		runtime.judge_detail = [ detail ]
+		runtime.judge_result = result
+		runtime.judge_score = 100 if result == 'Accepted' else 0
 
-	sublime.status_message('Loading result...')
-	log.debug             ('Loading result...')
-
-	jid = row[0]
-	memory = row[4]
-	_time = row[5]
-	cpl_info = None
-
-	if main == 'Compile Error':
-		r = urllib.request.Request(url=root_url + '/showcompileinfo?solution_id={}'.format(jid), headers=headers)
-		resp = opener.open(r)
-		text = resp.read().decode()
-		cpl_info = html.parser.HTMLParser().unescape(_cpl_re.findall(text)[0])
-	detail = [ main, _time, memory ]
-
-	return main, cpl_info, detail
-
-
-def fetch_result(username, pid):
-	head = ['Result', 'Time', 'Memory']
-	main, cpl_info, detail = load_result(username, pid)
-	printer.print_result(head, [ detail ], main, main, cpl_info, pid)
-
-
-cfg = config.Config()
-headers = cfg.get_settings().get('headers')
+	def _reduce_html(self, html: str, pid: str):
+		html = html.replace('<a href=userstatus?user_id={}>'.format(self.username), '')
+		html = html.replace('<a href=problem?id={}>'.format(pid), '')
+		html = html.replace('</font>', '').replace('</a>', '')
+		html = re.sub(self.reduce_html_1_regex, '', html)
+		html = re.sub(self.reduce_html_2_regex, '', html)
+		html = re.sub(self.reduce_html_3_regex, '', html)
+		return html

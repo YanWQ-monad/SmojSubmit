@@ -8,6 +8,7 @@ from .libs import logging as log
 from .libs import config
 from .libs import loader
 from .libs import code
+from . import ojs
 
 
 PLUGIN_NAME = 'SmojSubmit'
@@ -40,7 +41,7 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 		self.cfg = config.Config()
 		self.login = False
 		self.oj_list = []
-		self.oj_config = {}
+		ojs.load_ojs()
 
 	def delay_init(self):
 		self.cfg.load_config(PLUGIN_NAME)
@@ -49,13 +50,7 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 		log.debug('Plugin loaded')
 
 		tm.set_config(setting.get('thread_config'))
-		for (name, oj) in setting.get('oj').items():
-			if oj.get('enable') is None or oj.get('enable'):
-				log.debug('  Found oj: {}'.format(name))
-				loader.oj_call(name, 'init', oj)
-				self.oj_list.append(name)
-				self.oj_config[name] = dict(oj)
-				self.oj_config[name]['name'] = name
+		ojs.activate()
 
 		SmojSubmitCommand.latest_value = setting.get('default_oj')
 		if SmojSubmitCommand.latest_value:
@@ -72,25 +67,15 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 
 	def run(self, **kw):
 		oj_name = kw['oj']
-		
-		if oj_name not in self.oj_list:
-			log.error('Unknown OJ: {}'.format(oj_name))
-			sublime.status_message('Unknown OJ: {}'.format(oj_name))
-			return None
 
 		if kw['type'] == 'submit':
 			lang = code.get_lang()
-			pid  = code.get_pid()
+			pid = code.get_pid()
 			text = code.get_text()
-			if lang not in self.oj_config[oj_name]['lang']:
-				log.error('Unsupported Language: {}'.format(lang))
-				sublime.status_message('Unsupported Language: {}'.format(lang))
-				sublime. error_message('Unsupported Language: {}'.format(lang))
-				return None
 			if pid is None:
 				return None
 			log.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
-			loader.oj_call(oj_name, 'submit', pid, text, lang)
+			tm.call_func_thread(ojs.submit, oj_name, pid, text, lang)
 
 		SmojSubmitCommand.latest_value = oj_name
 
