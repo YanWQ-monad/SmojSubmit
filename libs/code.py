@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import sublime_plugin
+import logging
 import sublime
 import re
 
-from . import logging as log
 
-
+logger = logging.getLogger(__name__)
 syntax_regex = re.compile(r'/([^/]*)\.sublime-syntax')
 
 
@@ -41,9 +41,10 @@ def get_pid():
 	view = sublime.active_window().active_view()
 	chunk = view.find_all(regex, 0)
 	if len(chunk) != 1:
-		log.warning           ('Not found pid or found multiple pids')
-		sublime.status_message('Not found pid or found multiple pids')
-		sublime. error_message('Not found pid or found multiple pids')
+		message = 'Not found pid or found multiple pids'
+		logger.error(message)
+		sublime.status_message(message)
+		sublime.error_message(message)
 		return None
 	match_str = view.substr(sublime.Region(chunk[0].a, chunk[0].b))
 	pid = re.search(regex, match_str).group(1)

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import sublime
 
-from . import logging as log
+
+logger = logging.getLogger(__name__)
 
 
 class Singleton(type):
@@ -33,7 +35,7 @@ class Config(metaclass=Singleton):
 		sublime.save_settings(self.name)
 
 	def on_change(self):
-		log.debug('Settings changed')
+		logger.info('Settings changed')
 		self.settings = sublime.load_settings(self.name)
 		if self.on_reload:
 			self.on_reload(self.settings)

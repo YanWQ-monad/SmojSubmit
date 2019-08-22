@@ -2,9 +2,6 @@
 	"thread_config": {
 		"max_active_thread_count": 3
 	},
-	"logging": {
-		"debug": "info"
-	},
 	"headers": {
 		"User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.75 Safari/537.36",
 		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"

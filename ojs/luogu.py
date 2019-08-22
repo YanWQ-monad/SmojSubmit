@@ -4,6 +4,7 @@ import http.cookiejar
 import urllib.parse
 import websocket
 import tempfile
+import logging
 import sublime
 import copy
 import time
@@ -12,7 +13,6 @@ import ssl
 import os
 import re
 
-from ..libs import logging as log
 from ..main import PLUGIN_NAME
 from ..libs import printer
 from ..libs import figlet
@@ -20,6 +20,7 @@ from ..libs import config as gconfig
 from . import OjModule, abort_when_false
 
 
+logger = logging.getLogger(__name__)
 lang_map = {
 	'Auto': 0,
 	'Pascal': 1,
@@ -176,16 +177,16 @@ class LuoguModule(OjModule):
 		}
 		data, resp = self.post(self.login_url, payload, self.login_page)
 		data = json.loads(data)
-		log.trace('Login response: {}'.format(data))
+		logger.debug('Login response: {}'.format(data))
 
 		if 'status' in data:
 			message = 'Login to Luogu failed: {}'.format(data['errorMessage'])
 			self.set_status(message)
-			log.warning(message)
+			logger.error(message)
 			return False
 
 		if data['locked']:
-			log.debug('Two-Factor Auth required')
+			logger.info('Two-Factor Auth required')
 			if not self._unlock_with_2FA():
 				return False
 
@@ -193,7 +194,7 @@ class LuoguModule(OjModule):
 		copy = self.cfg.get_settings().get('oj')
 		copy['luogu']['client_id'] = cookie_dict['__client_id']
 		copy['luogu']['uid'] = cookie_dict['_uid']
-		log.trace('save cookie: {}'.format(copy['luogu']))
+		logger.debug('save cookie: {}'.format(copy['luogu']))
 		self.cfg.get_settings().set('oj', copy)
 		self.cfg.save()
 
@@ -221,7 +222,7 @@ class LuoguModule(OjModule):
 
 		if data['status'] != 200:
 			message = 'Failed to submit: {}'.format(data.get('errorMessage', '-'))
-			log.warning(message)
+			logger.error(message)
 			self.set_status(message)
 			return False
 
@@ -255,7 +256,7 @@ class LuoguModule(OjModule):
 
 		while True:
 			msg = json.loads(ws.recv())
-			log.trace('websocket receive {}'.format(msg))
+			logger.debug('websocket receive {}'.format(msg))
 			if msg['type'] == 'status_push':
 				record = msg['record']
 				if 'testcases' in record['detail']:
@@ -332,7 +333,7 @@ class LuoguModule(OjModule):
 		html, resp = self.get(self.empty_url, self.headers)
 		uri = self.feinjection_regex.findall(html)[0]
 		injection = json.loads(urllib.parse.unquote(uri))
-		log.trace('feInjection = {}'.format(injection))
+		logger.debug('feInjection = {}'.format(injection))
 		return injection
 
 	def _get_xsrf_token(self):

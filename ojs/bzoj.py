@@ -2,14 +2,15 @@
 
 import urllib.parse
 import html.parser as parser
+import logging
 import time
 import re
 
-from ..libs import logging as log
 from ..libs import middleware
 from . import OjModule, abort_when_false
 
 
+logger = logging.getLogger(__name__)
 lang_map = {
 	'C': 0,
 	'C++': 1,
@@ -61,10 +62,11 @@ class BzojModule(OjModule):
 		login_status = self.check_login()
 		if login_status:
 			message = 'Login to BZOJ OK'
+			logger.info(message)
 		else:
 			message = 'Login to BZOJ fail'
+			logger.error(message)
 		self.set_status(message)
-		log.info(message)
 		return login_status
 
 	@abort_when_false
@@ -84,11 +86,11 @@ class BzojModule(OjModule):
 			else:
 				message = 'Submit Fail: Invalid login'
 			self.set_status(message)
-			log.warning(message)
+			logger.error(message)
 			return False
 		else:
 			self.set_status('Submit OK, fetching result...')
-			log.info('Submit OK')
+			logger.info('Submit OK')
 
 	def load_result(self, runtime):
 		values = {
@@ -116,7 +118,6 @@ class BzojModule(OjModule):
 
 		message = 'Loading result...'
 		self.set_status(message)
-		log.debug(message)
 
 		result = result.replace('_', ' ')
 		if result.endswith('Exceed'):

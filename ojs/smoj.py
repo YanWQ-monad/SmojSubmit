@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import json
 import time
 import re
 
-from ..libs import logging as log
 from ..libs import middleware
 from . import OjModule, abort_when_false
 
 
+logger = logging.getLogger(__name__)
 result_link = {
 	'Accept': 'Accepted',
 	'Wrong_Answer': 'Wrong Answer',
@@ -59,10 +60,11 @@ class SmojModule(OjModule):
 		html, resp = self.post(self.login_url, values, self.headers)
 		if len(html) < 100:
 			message = 'Login to SMOJ fail: {}'.format(info)
+			logger.error(message)
 		else:
 			message = 'Login to SMOJ OK'
+			logger.info(message)
 		self.set_status(message)
-		log.error(message)
 		return len(html) >= 100  # same as the if condition
 
 	def check_login(self):
@@ -89,11 +91,11 @@ class SmojModule(OjModule):
 			else:
 				message = 'Submit failed: {}'.format(html)
 			self.set_status(message)
-			log.error(message)
+			logger.error(message)
 			return False
 		else:
 			self.set_status('Submit OK, fetching result...')
-			log.info('Submit OK')
+			logger.info('Submit OK')
 
 	@abort_when_false
 	def load_result(self, runtime):

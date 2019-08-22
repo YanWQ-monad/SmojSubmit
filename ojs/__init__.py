@@ -4,14 +4,16 @@ import functools
 import http.cookiejar
 import importlib
 import json
+import logging
 import os
 import sublime
 import urllib.request
 
 from ..libs import config
-from ..libs import logging as log
 from ..libs import printer
 
+
+logger = logging.getLogger(__name__)
 ojs = {}
 
 
@@ -19,7 +21,7 @@ class ModuleRegister(type):
 	def __new__(cls, name, bases, attrs):
 		newclass = super(cls, ModuleRegister).__new__(cls, name, bases, attrs)
 		if name != 'OjModule':
-			log.debug('new class registered: {} (class {})'
+			logger.info('new class registered: {} (class {})'
 				.format(attrs['display_name'], name))
 			ojs[attrs['name']] = newclass()
 		return newclass
@@ -71,7 +73,7 @@ class OjModule(metaclass=ModuleRegister):
 		return opener, cookie
 
 	def get(self, url, headers, decode=True):
-		log.trace('GET {}'.format(url))
+		logger.debug('GET {}'.format(url))
 		req = urllib.request.Request(url=url, headers=headers)
 		resp = self.opener.open(req)
 		html = resp.read()
@@ -85,7 +87,7 @@ class OjModule(metaclass=ModuleRegister):
 		return html, resp
 
 	def post(self, url, data, headers, post_type=None):
-		log.trace('POST {} with data {}'.format(url, data))
+		logger.debug('POST {} with data {}'.format(url, data))
 		post_type = post_type or self.post_type
 
 		if isinstance(data, dict):
@@ -130,36 +132,36 @@ class OjModule(metaclass=ModuleRegister):
 	def work(self, pid, code, language):
 		if language not in self.support_languages:
 			message = 'Unsupported Language: {}'.format(language)
-			log.error(message)
+			logger.error(message)
 			self.set_status(message)
 			sublime.error_message(message)
 			return False
 
-		log.trace('checking login status')
+		logger.debug('checking login status')
 		login_status = self.check_login()
-		log.trace('checked login status: {}'.format(login_status))
+		logger.debug('checked login status: {}'.format(login_status))
 
 		if not login_status:
-			log.trace('call self.login()')
+			logger.debug('call self.login()')
 			if not self.login():
 				return False
 
 		runtime = self.RuntimeVariable(pid, code, language)
-		log.trace('Initialized runtime variable: {}'.format(runtime))
+		logger.debug('Initialized runtime variable: {}'.format(runtime))
 
-		log.trace('call self.submit(runtime)')
+		logger.debug('call self.submit(runtime)')
 		self.set_status('Submitting code to {}...'.format(self.display_name))
 		self.submit(runtime)
-		log.trace('end self.submit(runtime)')
+		logger.debug('end self.submit(runtime)')
 
-		log.trace('Runtime variable: {}'.format(runtime))
+		logger.debug('Runtime variable: {}'.format(runtime))
 
-		log.trace('call self.load_result(runtime)')
+		logger.debug('call self.load_result(runtime)')
 		self.load_result(runtime)
-		log.trace('end self.load_result(runtime)')
+		logger.debug('end self.load_result(runtime)')
 
-		log.trace('Runtime variable: {}'.format(runtime))
-		log.trace('call print_result()')
+		logger.debug('Runtime variable: {}'.format(runtime))
+		logger.debug('call print_result()')
 		printer.print_result(
 			self.result_header,
 			runtime.judge_detail,
@@ -184,10 +186,10 @@ def activate():
 	ojs_config = cfg.get_settings().get('oj')
 	for name, oj in ojs.items():
 		if name not in ojs_config:
-			log.info('no config for {}, skip'.format(oj.display_name))
+			logger.warning('no config for {}, skip'.format(oj.display_name))
 		oj_config = ojs_config[name]
 		oj_config['headers'] = headers
-		log.debug('activate {} with config {}'.format(oj.display_name, oj_config))
+		logger.debug('activate {} with config {}'.format(oj.display_name, oj_config))
 		oj.init(oj_config)
 
 
@@ -195,7 +197,7 @@ def load_ojs():
 	ojs_path = os.path.dirname(os.path.abspath(__file__))
 	for file in os.listdir(ojs_path)[::-1]:
 		if not file.startswith('__') and file.endswith('.py'):
-			log.debug('import {}'.format(file))
+			logger.debug('import {}'.format(file))
 			importlib.import_module('.' + file[:-3], __package__)
 
 

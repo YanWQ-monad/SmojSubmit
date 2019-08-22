@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import threading
+import logging
 import queue
 import time
 
-from . import logging as log
 
+logger = logging.getLogger(__name__)
 pool = queue.Queue()
 active = []
 max_active_thread_count = 3 # It can be overridden in 'sublime-setting'
@@ -46,7 +47,10 @@ class FunctionNewThread(ManagedThread):
 
 	def exec(self):
 		func = self.func
-		func(*self.args, **self.kw)
+		try:
+			func(*self.args, **self.kw)
+		except Exception as e:
+			logger.exception('Exception in child thread: {}'.format(str(e)))
 
 
 def set_config(config):
@@ -57,7 +61,7 @@ def set_config(config):
 
 
 def add_thread(thread):
-	log.trace('Add a thread')
+	logger.debug('Push a thread')
 	pool.put(thread)
 	with lock:
 		event.set()

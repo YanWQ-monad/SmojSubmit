@@ -2,14 +2,15 @@
 
 import urllib.parse
 import html.parser as parser
+import logging
 import time
 import re
 
-from ..libs import logging as log
 from ..libs import middleware
 from . import OjModule, abort_when_false
 
 
+logger = logging.getLogger(__name__)
 lang_map = {
 	'C++': 0, # G++
 	'C': 1, # GCC
@@ -60,10 +61,11 @@ class HduModule(OjModule):
 		login_status = self.check_login()
 		if login_status:
 			message = 'Login to HDU OK'
+			logger.info(message)
 		else:
 			message = 'Login to HDU fail'
+			logger.error(message)
 		self.set_status(message)
-		log.info(message)
 		return login_status
 
 	@abort_when_false
@@ -85,11 +87,11 @@ class HduModule(OjModule):
 			else:
 				message = 'Submit Fail'
 			self.set_status(message)
-			log.warning(message)
+			logger.error(message)
 			return False
 		else:
 			self.set_status('Submit OK, fetching result...')
-			log.info('Submit OK')
+			logger.info('Submit OK')
 
 	def load_result(self, runtime):
 		values = {
@@ -115,7 +117,6 @@ class HduModule(OjModule):
 
 		message = 'Loading result...'
 		self.set_status(message)
-		log.debug(message)
 
 		result = result.replace('<br>', ' ')
 		judge_id = match.group(2)

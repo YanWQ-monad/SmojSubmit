@@ -1,46 +1,48 @@
 # -*- coding: utf-8 -*-
 
-import threading
+import logging.config
+import logging
 
 
-title = ''
-g_lock = threading.Lock()
-level_map = [ 'trace', 'debug', 'info', 'warning', 'error' ]
-global_level = level_map.index('info')
+PLUGIN_NAME = 'SmojSubmit'
 
 
-def set_logging_config(name, cfg):
-	global title
-	global global_level
-	title = name
-	try:
-		global_level = level_map.index(cfg.get('debug'))
-	except ValueError:
-		error('No such logging level: {}'.format(cfg.get('debug')))
+class SmojSubmitFormatter(logging.Formatter):
+	def format(self, record):
+		level = record.levelname[0]
+		name = record.name
+		if name.startswith(PLUGIN_NAME + '.'):
+			name = name[len(PLUGIN_NAME) + 1 : ]
+		s = PLUGIN_NAME + ': [{0} {1}:{2.lineno}] {2.msg}'.format(level, name, record)
+		return s
 
 
-def write_log(level, message):
-	if level_map.index(level) >= global_level:
-		s = title + ': [' + level.upper() + '] ' + message
-		with g_lock:
-			print(s)
+def init_logging():
+	config = {
+		'version': 1,
+		'disable_existing_loggers': False,
+		'formatters': {
+			'smojsubmit_fmt': {
+				'()': __name__ + '.SmojSubmitFormatter'
+			}
+		},
+		'handlers': {
+			'smojsubmit_handler': {
+				'level': 'WARNING',
+				'formatter': 'smojsubmit_fmt',
+				'class': 'logging.StreamHandler',
+				'stream': 'ext://sys.stderr'
+			}
+		},
+		'loggers': {
+			'SmojSubmit': {
+				'handlers': ['smojsubmit_handler'],
+				'level': 'WARNING',
+				'propagate': False
+			}
+		}
+	}
+	logging.config.dictConfig(config)
 
-
-def trace(message):
-	write_log('trace', message)
-
-
-def debug(message):
-	write_log('debug', message)
-
-
-def info(message):
-	write_log('info', message)
-
-
-def warning(message):
-	write_log('warning', message)
-
-
-def error(message):
-	write_log('error', message)
+	logger = logging.getLogger(__name__)
+	logger.info('logging initialized')

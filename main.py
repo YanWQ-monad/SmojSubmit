@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 
+from .libs import logging as _logging
+_logging.init_logging()
+
+
 import sublime_plugin
+import logging
 import sublime
 
 from .libs import thread_manager as tm
-from .libs import logging as log
 from .libs import config
 from .libs import loader
 from .libs import code
 from . import ojs
 
 
+logger = logging.getLogger(__name__)
 PLUGIN_NAME = 'SmojSubmit'
 
 
@@ -46,15 +51,15 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 	def delay_init(self):
 		self.cfg.load_config(PLUGIN_NAME)
 		setting = self.cfg.get_settings()
-		log.set_logging_config(PLUGIN_NAME, setting.get('logging'))
-		log.debug('Plugin loaded')
 
 		tm.set_config(setting.get('thread_config'))
 		ojs.activate()
 
 		SmojSubmitCommand.latest_value = setting.get('default_oj')
 		if SmojSubmitCommand.latest_value:
-			log.debug('Set default oj => {}'.format(SmojSubmitCommand.latest_value))
+			logger.info('Set default oj => {}'.format(SmojSubmitCommand.latest_value))
+
+		logger.warning('Plugin loaded')
 
 	# def reload_settings(self):
 	# 	new_setting = sublime.load_settings(PLUGIN_NAME + '.sublime-settings')
@@ -74,7 +79,7 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 			text = code.get_text()
 			if pid is None:
 				return None
-			log.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
+			logger.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
 			tm.call_func_thread(ojs.submit, oj_name, pid, text, lang)
 
 		SmojSubmitCommand.latest_value = oj_name
