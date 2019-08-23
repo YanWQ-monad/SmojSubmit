@@ -2,6 +2,7 @@
 
 import logging.config
 import logging
+import traceback
 
 
 PLUGIN_NAME = 'SmojSubmit'
@@ -13,7 +14,11 @@ class SmojSubmitFormatter(logging.Formatter):
 		name = record.name
 		if name.startswith(PLUGIN_NAME + '.'):
 			name = name[len(PLUGIN_NAME) + 1 : ]
-		s = PLUGIN_NAME + ': [{0} {1}:{2.lineno}] {2.msg}'.format(level, name, record)
+		if record.exc_info is not None:
+			trace = ''.join(traceback.format_exception(*record.exc_info))
+			s = PLUGIN_NAME + ': [{0} {1}:{2.lineno}] {2.msg}. Traceback:\n{3}'.format(level, name, record, trace)
+		else:
+			s = PLUGIN_NAME + ': [{0} {1}:{2.lineno}] {2.msg}'.format(level, name, record)
 		return s
 
 

@@ -7,7 +7,8 @@ import time
 import re
 
 from ..libs import middleware
-from . import OjModule, abort_when_false
+from ..libs.exception import LoginFail, SubmitFail
+from . import OjModule
 
 
 logger = logging.getLogger(__name__)
@@ -62,13 +63,10 @@ class HduModule(OjModule):
 		if login_status:
 			message = 'Login to HDU OK'
 			logger.info(message)
+			self.set_status(message)
 		else:
-			message = 'Login to HDU fail'
-			logger.error(message)
-		self.set_status(message)
-		return login_status
+			raise LoginFail()
 
-	@abort_when_false
 	def submit(self, runtime):
 		language = lang_map[runtime.language]
 		code = middleware.freopen_filter(runtime.code)
@@ -83,12 +81,9 @@ class HduModule(OjModule):
 		html, resp = self.post(self.submit_url, values, self.headers)
 		if resp.url.find('status.php') == -1:
 			if resp.url.find('userloginex.php') != -1:
-				message = 'Submit Fail: Invalid login'
+				raise SubmitFail('Invalid login')
 			else:
-				message = 'Submit Fail'
-			self.set_status(message)
-			logger.error(message)
-			return False
+				raise SubmitFail()
 		else:
 			self.set_status('Submit OK, fetching result...')
 			logger.info('Submit OK')

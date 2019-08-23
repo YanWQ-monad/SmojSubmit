@@ -12,6 +12,7 @@ from .libs import thread_manager as tm
 from .libs import config
 from .libs import loader
 from .libs import code
+from .libs.exception import InvalidInput
 from . import ojs
 
 
@@ -74,11 +75,15 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 		oj_name = kw['oj']
 
 		if kw['type'] == 'submit':
-			lang = code.get_lang()
-			pid = code.get_pid()
-			text = code.get_text()
-			if pid is None:
-				return None
+			try:
+				lang = code.get_lang()
+				pid = code.get_pid()
+				text = code.get_text()
+			except InvalidInput as e:
+				logger.error(e.message)
+				sublime.status_message(e.message)
+				sublime.error_message(e.message)
+				return
 			logger.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
 			tm.call_func_thread(ojs.submit, oj_name, pid, text, lang)
 

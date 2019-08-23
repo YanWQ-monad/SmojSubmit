@@ -17,7 +17,8 @@ from ..main import PLUGIN_NAME
 from ..libs import printer
 from ..libs import figlet
 from ..libs import config as gconfig
-from . import OjModule, abort_when_false
+from ..libs.exception import LoginFail, SubmitFail, ExitScript
+from . import OjModule
 
 
 logger = logging.getLogger(__name__)
@@ -180,15 +181,11 @@ class LuoguModule(OjModule):
 		logger.debug('Login response: {}'.format(data))
 
 		if 'status' in data:
-			message = 'Login to Luogu failed: {}'.format(data['errorMessage'])
-			self.set_status(message)
-			logger.error(message)
-			return False
+			raise LoginFail(data['errorMessage'])
 
 		if data['locked']:
 			logger.info('Two-Factor Auth required')
-			if not self._unlock_with_2FA():
-				return False
+			self._unlock_with_2FA()
 
 		cookie_dict = {item.name: item.value for item in self.cookie}
 		copy = self.cfg.get_settings().get('oj')
@@ -198,9 +195,6 @@ class LuoguModule(OjModule):
 		self.cfg.get_settings().set('oj', copy)
 		self.cfg.save()
 
-		return True
-
-	@abort_when_false
 	def submit(self, runtime):
 		code = runtime.code
 		o2 = code.startswith(self.o2_flag)
@@ -221,10 +215,7 @@ class LuoguModule(OjModule):
 		data = json.loads(data)
 
 		if data['status'] != 200:
-			message = 'Failed to submit: {}'.format(data.get('errorMessage', '-'))
-			logger.error(message)
-			self.set_status(message)
-			return False
+			raise SubmitFail(data.get('errorMessage', '-'))
 
 		runtime.judge_id = str(data['data']['rid'])
 
@@ -296,7 +287,7 @@ class LuoguModule(OjModule):
 		ws.send(json.dumps(leave_data, separators=(',', ':')))
 		ws.close()
 
-		raise Exception('Force Finish')
+		raise ExitScript()
 
 	def post(self, url, data, referer, **kwargs):
 		headers = self.headers.copy()
@@ -344,15 +335,19 @@ class LuoguModule(OjModule):
 		initial_msg = ''
 		while True:
 			code = None
-			def got_input(text=''):
+			cancal = False
+			def got_input(text):
 				nonlocal code
 				code = text
-			sublime.active_window().show_input_panel('[{}] Enter 2FA code'.format(PLUGIN_NAME), initial_msg, got_input, None, got_input)
+			def on_cancal():
+				nonlocal cancal
+				cancal = True
+			sublime.active_window().show_input_panel('[{}] Enter 2FA code'.format(PLUGIN_NAME), initial_msg, got_input, None, on_cancal)
 
-			while code is None:
+			while code is None and cancal == False:
 				time.sleep(0.1)
-			if len(code) == 0 or code == 'exit':
-				return False
+			if cancal:
+				raise ExitScript()
 
 			payload = {'code': code}
 			data, resp = self.post(self.unlock_url, payload, self.unlock_page)
@@ -360,5 +355,3 @@ class LuoguModule(OjModule):
 			if 'status' not in data:
 				break
 			initial_msg = '2FA code is not correct'
-
-		return True

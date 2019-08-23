@@ -11,6 +11,7 @@ import urllib.request
 
 from ..libs import config
 from ..libs import printer
+from ..libs.exception import SmojsubmitException, OjException, ExitScript
 
 
 logger = logging.getLogger(__name__)
@@ -131,11 +132,7 @@ class OjModule(metaclass=ModuleRegister):
 
 	def work(self, pid, code, language):
 		if language not in self.support_languages:
-			message = 'Unsupported Language: {}'.format(language)
-			logger.error(message)
-			self.set_status(message)
-			sublime.error_message(message)
-			return False
+			raise OjException('Unsupported Language: {}'.format(language))
 
 		logger.debug('checking login status')
 		login_status = self.check_login()
@@ -143,8 +140,7 @@ class OjModule(metaclass=ModuleRegister):
 
 		if not login_status:
 			logger.debug('call self.login()')
-			if not self.login():
-				return False
+			self.login()
 
 		runtime = self.RuntimeVariable(pid, code, language)
 		logger.debug('Initialized runtime variable: {}'.format(runtime))
@@ -170,14 +166,16 @@ class OjModule(metaclass=ModuleRegister):
 			runtime.judge_compile_message,
 			runtime.pid)
 
-
-def abort_when_false(func):
-	@functools.wraps(func)
-	def wrapper(*args, **kwargs):
-		return_value = func(*args, **kwargs)
-		if return_value == False:
-			raise Exception('Abort when return False')
-	return wrapper
+	def work_wrapper(self, *args, **kwargs):
+		try:
+			self.work(*args, **kwargs)
+		except ExitScript:
+			logger.debug('caught ExitScript exception')
+		except OjException as e:
+			self.set_status(e.message)
+			logger.error(e.message)
+		except Exception as e:
+			logger.exception('Unexpected exception: {}'.format(str(e)))
 
 
 def activate():
@@ -206,4 +204,4 @@ def submit(oj_name, pid, code, language):
 		sublime.status_message('No such oj: {}'.format(oj_name))
 		return
 	oj = ojs[oj_name]
-	oj.work(pid, code, language)
+	oj.work_wrapper(pid, code, language)

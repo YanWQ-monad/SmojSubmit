@@ -6,7 +6,8 @@ import time
 import re
 
 from ..libs import middleware
-from . import OjModule, abort_when_false
+from ..libs.exception import LoginFail, SubmitFail, ExitScript
+from . import OjModule
 
 
 logger = logging.getLogger(__name__)
@@ -59,13 +60,11 @@ class SmojModule(OjModule):
 
 		html, resp = self.post(self.login_url, values, self.headers)
 		if len(html) < 100:
-			message = 'Login to SMOJ fail: {}'.format(info)
-			logger.error(message)
+			raise LoginFail(html)
 		else:
 			message = 'Login to SMOJ OK'
 			logger.info(message)
-		self.set_status(message)
-		return len(html) >= 100  # same as the if condition
+			self.set_status(message)
 
 	def check_login(self):
 		if self.opener is None:
@@ -73,7 +72,6 @@ class SmojModule(OjModule):
 		html, resp = self.get(self.root_url, self.headers)
 		return resp.url.find('/login') == -1
 
-	@abort_when_false
 	def submit(self, runtime):
 		assert runtime.language in ['C++', 'C']
 		code = middleware.freopen_filter(runtime.code, runtime.pid)
@@ -87,17 +85,13 @@ class SmojModule(OjModule):
 		html, resp = self.post(self.post_url.format(runtime.pid), values, self.headers)
 		if resp.url.find('allmysubmits') == -1:
 			if html.startswith('<html>'):
-				message = 'Submit failed. Redirected to {}'.format(resp.url)
+				raise SubmitFail('Redirected to {}'.format(resp.url))
 			else:
-				message = 'Submit failed: {}'.format(html)
-			self.set_status(message)
-			logger.error(message)
-			return False
+				raise SubmitFail(html)
 		else:
 			self.set_status('Submit OK, fetching result...')
 			logger.info('Submit OK')
 
-	@abort_when_false
 	def load_result(self, runtime):
 		timestamp = None
 		while True:
@@ -123,7 +117,7 @@ class SmojModule(OjModule):
 
 		if result['result'] == 'OI_MODE':
 			self.set_status('This is an OI-MODE problem')
-			return False
+			raise ExitScript()
 
 		runtime.judge_compile_message = \
 			result['compileInfo'][0] if len(result['compileInfo']) else None
