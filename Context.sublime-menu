@@ -32,6 +32,11 @@
                 "caption": "Luogu",
                 "command": "smoj_submit",
                 "args": { "type": "submit", "oj": "luogu" }
+            },
+            {
+                "caption": "Codeforces",
+                "command": "smoj_submit",
+                "args": { "type": "submit", "oj": "codeforces" }
             } // Remember add ',' here if you add your custom oj below
 
             /** OJ template **
