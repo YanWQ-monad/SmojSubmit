@@ -7,39 +7,54 @@ import sublime
 logger = logging.getLogger(__name__)
 
 
-class Singleton(type):
+class ConfigSingleton(type):
 	_instances = {}
-	def __call__(cls, *args, **kwargs):
-		if cls not in cls._instances:
-			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-		return cls._instances[cls]
+	def __call__(cls, name):
+		if name not in cls._instances:
+			cls._instances[name] = super(ConfigSingleton, cls).__call__(name)
+		return cls._instances[name]
 
 
-class Config(metaclass=Singleton):
-	def __init__(self):
-		self.init = False
-
-	def load_config(self, name, on_reload=None):
+class Config(metaclass=ConfigSingleton):
+	def __init__(self, name):
 		self.name = name + '.sublime-settings'
-		self.on_reload = on_reload
+		self.init = False
+		self.settings = None
+		self.on_reload = []
+
+	def load_config(self):
+		if self.init:
+			return
+		logger.info('Load config "{}"'.format(self.name))
 		self.settings = sublime.load_settings(self.name)
-		self.add_reload()
 		self.init = True
 
-	def add_reload(self):
-		keys = [ 'oj', 'thread_config' ]
+	def add_on_change(self, key, func):
+		self.load_config()
+		self.settings.add_on_change(key, func)
+
+	def get(self, key, default=None):
+		self.load_config()
+		node = self.settings
+		keys = key.split('.')
 		for key in keys:
-			self.settings.add_on_change(key, self.on_change)
+			node = node.get(key)
+			if node is None:
+				break
+		return node if node is not None else default
 
-	def save(self):
+	def set(self, key, value):
+		self.load_config()
+		keys = key.split('.')
+		root_key = keys[0]
+		obj = self.settings.get(root_key) or {}
+
+		node = obj
+		for key in keys[1:-1]:
+			if node.get(key) is None:
+				node[key] = {}
+			node = node[key]
+		node[keys[-1]] = value
+
+		self.settings.set(root_key, obj)
 		sublime.save_settings(self.name)
-
-	def on_change(self):
-		logger.info('Settings changed')
-		self.settings = sublime.load_settings(self.name)
-		if self.on_reload:
-			self.on_reload(self.settings)
-
-	def get_settings(self):
-		assert self.init
-		return self.settings

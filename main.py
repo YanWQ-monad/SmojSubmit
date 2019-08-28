@@ -44,18 +44,17 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 
 	def __init__(self):
 		loader.MonadApplicationLoader.__init__(self)
-		self.cfg = config.Config()
+		self.config = config.Config(PLUGIN_NAME)
 		self.login = False
 		self.oj_list = []
 		ojs.load_ojs()
 
 	def delay_init(self):
-		self.cfg.load_config(PLUGIN_NAME)
-		setting = self.cfg.get_settings()
+		self.config.load_config()
 
 		ojs.activate()
 
-		SmojSubmitCommand.latest_value = setting.get('default_oj')
+		SmojSubmitCommand.latest_value = self.config.get('default_oj')
 		if SmojSubmitCommand.latest_value:
 			logger.info('Set default oj => {}'.format(SmojSubmitCommand.latest_value))
 

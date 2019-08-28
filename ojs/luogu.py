@@ -149,11 +149,11 @@ class LuoguModule(OjModule):
 			self.judge_id = None
 
 	def init(self, config):
-		self.cfg = gconfig.Config()
+		self.config = gconfig.Config('SmojSubmit')
 
 		self.opener, self.cookie = self.create_opener()
-		client_id = self.cfg.get_settings().get('oj').get('luogu').get('client_id', '')
-		uid =self.cfg.get_settings().get('oj').get('luogu').get('uid', '')
+		client_id = self.config.get('oj.luogu.client_id', '')
+		uid = self.config.get('oj.luogu.uid', '')
 		expires = str(int(time.time()) + 2592000)
 		self.cookie.set_cookie(http.cookiejar.Cookie(0, '__client_id', client_id, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
 		self.cookie.set_cookie(http.cookiejar.Cookie(0, '_uid', uid, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
@@ -188,12 +188,9 @@ class LuoguModule(OjModule):
 			self._unlock_with_2FA()
 
 		cookie_dict = {item.name: item.value for item in self.cookie}
-		copy = self.cfg.get_settings().get('oj')
-		copy['luogu']['client_id'] = cookie_dict['__client_id']
-		copy['luogu']['uid'] = cookie_dict['_uid']
-		logger.debug('save cookie: {}'.format(copy['luogu']))
-		self.cfg.get_settings().set('oj', copy)
-		self.cfg.save()
+		self.config.set('oj.luogu.client_id', cookie_dict['__client_id'])
+		self.config.set('oj.luogu.uid', cookie_dict['_uid'])
+		logger.debug('save cookie: uid={} client_id={}'.format(cookie_dict['_uid'], cookie_dict['__client_id']))
 
 	def submit(self, runtime):
 		code = runtime.code

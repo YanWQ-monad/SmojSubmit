@@ -180,9 +180,9 @@ class OjModule(metaclass=ModuleRegister):
 
 
 def activate():
-	cfg = config.Config()
-	headers = cfg.get_settings().get('headers')
-	ojs_config = cfg.get_settings().get('oj')
+	config_ = config.Config('SmojSubmit')
+	headers = config_.get('headers')
+	ojs_config = config_.get('oj')
 	for name, oj in ojs.items():
 		if name not in ojs_config:
 			logger.warning('no config for {}, skip'.format(oj.display_name))
