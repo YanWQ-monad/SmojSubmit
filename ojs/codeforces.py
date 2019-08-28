@@ -9,6 +9,7 @@ import time
 import ssl
 import re
 
+from ..libs import cookie
 from ..libs import printer
 from ..libs import figlet
 from ..libs.middleware import freopen_filter
@@ -189,7 +190,12 @@ class CodeforcesModule(OjModule):
 		self.password = config['password']
 		self.headers = config['headers']
 		self.is_login = False
-		if config.get('init_login', False):
+		self.opener, self.cookie = self.create_opener()
+
+		if cookie.load_cookie('codeforces', 'codeforces.com', self.cookie, ['X-User-Sha1', 'JSESSIONID']):
+			self.is_login = True
+
+		if config.get('init_login', False) and not self.check_login():
 			self.login()
 
 	def check_login(self):
@@ -199,15 +205,14 @@ class CodeforcesModule(OjModule):
 		return html.find(self.login_check_substr.format(self.username)) != -1
 
 	def login(self):
-		if self.opener is None:
-			self.opener, self.cookie = self.create_opener()
 		self.csrf_token = self._get_csrf_token()
 
 		payload = {
 			'csrf_token': self.csrf_token,
 			'action': 'enter',
 			'handleOrEmail': self.username,
-			'password': self.password
+			'password': self.password,
+			'remember': 'on'
 		}
 
 		html, resp = self.post(self.login_url, payload, self.login_url)
@@ -221,6 +226,8 @@ class CodeforcesModule(OjModule):
 			if len(reasons) > 0:
 				raise LoginFail(reasons[0])
 			raise LoginFail()
+
+		cookie.save_cookie('codeforces', self.cookie, ['X-User-Sha1', 'JSESSIONID'])
 
 	def submit(self, runtime):
 		code = freopen_filter(runtime.code)

@@ -15,8 +15,9 @@ import re
 
 from ..main import PLUGIN_NAME
 from ..libs import printer
+from ..libs import cookie
 from ..libs import figlet
-from ..libs import config as gconfig
+from ..libs import config
 from ..libs.exception import LoginFail, SubmitFail, ExitScript
 from . import OjModule
 
@@ -149,19 +150,14 @@ class LuoguModule(OjModule):
 			self.judge_id = None
 
 	def init(self, config):
-		self.config = gconfig.Config('SmojSubmit')
-
-		self.opener, self.cookie = self.create_opener()
-		client_id = self.config.get('oj.luogu.client_id', '')
-		uid = self.config.get('oj.luogu.uid', '')
-		expires = str(int(time.time()) + 2592000)
-		self.cookie.set_cookie(http.cookiejar.Cookie(0, '__client_id', client_id, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
-		self.cookie.set_cookie(http.cookiejar.Cookie(0, '_uid', uid, None, False, '.luogu.org', True, False, '/', True, True, expires, False, None, None, None))
+		opener, cookie_ = self.create_opener()
+		if cookie.load_cookie('luogu', '.luogu.org', cookie_, ['__client_id', '_uid']):
+			self.opener, self.cookie = opener, cookie_
 
 		self.headers = merge_dict(config['headers'], dict(Origin=self.root_url))
 		self.username = config['username']
 		self.password = config['password']
-		if config.get('init_login', False):
+		if config.get('init_login', False) and not self.check_login():
 			self.login()
 
 	def check_login(self):
@@ -171,6 +167,9 @@ class LuoguModule(OjModule):
 		return 'currentUser' in injection and injection['currentUser'] is not None
 
 	def login(self):
+		if self.opener is None:
+			self.opener, self.cookie = self.create_opener()
+
 		payload = {
 			'username': self.username,
 			'password': self.password,
@@ -187,10 +186,7 @@ class LuoguModule(OjModule):
 			logger.info('Two-Factor Auth required')
 			self._unlock_with_2FA()
 
-		cookie_dict = {item.name: item.value for item in self.cookie}
-		self.config.set('oj.luogu.client_id', cookie_dict['__client_id'])
-		self.config.set('oj.luogu.uid', cookie_dict['_uid'])
-		logger.debug('save cookie: uid={} client_id={}'.format(cookie_dict['_uid'], cookie_dict['__client_id']))
+		cookie.save_cookie('luogu', self.cookie, ['__client_id', '_uid'])
 
 	def submit(self, runtime):
 		code = runtime.code
