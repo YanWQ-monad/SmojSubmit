@@ -7,11 +7,11 @@ import json
 import logging
 import os
 import sublime
+import threading
 import urllib.request
 
 from ..libs import config
 from ..libs import printer
-from ..libs.thread_manager import call_func_thread
 from ..libs.exception import SmojsubmitException, OjException, ExitScript
 
 
@@ -190,7 +190,7 @@ def activate():
 		oj_config = ojs_config[name]
 		oj_config['headers'] = headers
 		logger.debug('activate {} with config {}'.format(oj.display_name, oj_config))
-		call_func_thread(oj.init, oj_config)
+		threading.Thread(target=lambda: oj.init(oj_config)).start()
 
 
 def load_ojs():

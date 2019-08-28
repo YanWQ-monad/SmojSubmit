@@ -13,7 +13,6 @@ from ..libs import printer
 from ..libs import figlet
 from ..libs.middleware import freopen_filter
 from ..libs.exception import LoginFail, SubmitFail, ExitScript
-from ..libs.thread_manager import call_func_thread
 from . import OjModule
 
 
@@ -268,7 +267,7 @@ class CodeforcesModule(OjModule):
 		runtime.judging = True
 		runtime.lock = threading.Lock()
 
-		call_func_thread(self._fetch_detail_process, runtime)
+		threading.Thread(target=lambda: self._fetch_detail_process(runtime)).start()
 		last_id = 0
 		while True:
 			logger.debug('Waiting for websocket message')

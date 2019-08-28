@@ -7,8 +7,8 @@ _logging.init_logging()
 import sublime_plugin
 import logging
 import sublime
+import threading
 
-from .libs import thread_manager as tm
 from .libs import config
 from .libs import loader
 from .libs import code
@@ -53,7 +53,6 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 		self.cfg.load_config(PLUGIN_NAME)
 		setting = self.cfg.get_settings()
 
-		tm.set_config(setting.get('thread_config'))
 		ojs.activate()
 
 		SmojSubmitCommand.latest_value = setting.get('default_oj')
@@ -85,7 +84,7 @@ class SmojSubmitCommand(loader.MonadApplicationLoader):
 				sublime.error_message(e.message)
 				return
 			logger.debug('Submit to {} {} with {}'.format(oj_name, pid, lang))
-			tm.call_func_thread(ojs.submit, oj_name, pid, text, lang)
+			threading.Thread(target=lambda: ojs.submit(oj_name, pid, text, lang)).start()
 
 		SmojSubmitCommand.latest_value = oj_name
 
