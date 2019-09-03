@@ -1,0 +1,18 @@
+on:
+- push
+
+name: Unit test
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Style check
+      uses: ./.github/flake_check
+    - name: Sublime unittest
+      uses: ./.github/unittest_runtime
+      env:
+        PACKAGE: "SmojSubmit"
+        SUBLIME_TEXT_VERSION: "3"
