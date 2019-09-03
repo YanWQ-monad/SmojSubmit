@@ -47,14 +47,19 @@ class Config(metaclass=ConfigSingleton):
 		self.load_config()
 		keys = key.split('.')
 		root_key = keys[0]
-		obj = self.settings.get(root_key) or {}
 
-		node = obj
-		for key in keys[1:-1]:
-			if node.get(key) is None:
-				node[key] = {}
-			node = node[key]
-		node[keys[-1]] = value
+		if len(keys) == 1:
+			obj = value
+		else:
+			obj = self.settings.get(root_key) or {}
+
+			node = obj
+			for key in keys[1:-1]:
+				if node.get(key) is None:
+					node[key] = {}
+				node = node[key]
+			node[keys[-1]] = value
 
 		self.settings.set(root_key, obj)
+
 		sublime.save_settings(self.name)
