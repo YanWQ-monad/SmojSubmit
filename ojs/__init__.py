@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import functools
 import http.cookiejar
 import importlib
 import json
@@ -12,7 +11,7 @@ import urllib.request
 
 from ..libs import config
 from ..libs import printer
-from ..libs.exception import SmojsubmitException, OjException, ExitScript
+from ..libs.exception import OjException, ExitScript
 
 
 logger = logging.getLogger(__name__)
@@ -20,190 +19,188 @@ ojs = {}
 
 
 class ModuleRegister(type):
-	def __new__(cls, name, bases, attrs):
-		newclass = super(cls, ModuleRegister).__new__(cls, name, bases, attrs)
-		if name != 'OjModule':
-			logger.info('new class registered: {} (class {})'
-				.format(attrs['display_name'], name))
-			ojs[attrs['name']] = newclass()
-		return newclass
+    def __new__(cls, name, bases, attrs):
+        newclass = super(cls, ModuleRegister).__new__(cls, name, bases, attrs)
+        if name != 'OjModule':
+            logger.info('new class registered: {} (class {})'.format(attrs['display_name'], name))
+            ojs[attrs['name']] = newclass()
+        return newclass
 
 
 class OjModule(metaclass=ModuleRegister):
-	# name: str
-	# display_name: str
-	# result_header: list
-	# support_languages: list
-	post_type = 'urlencoded'  # str
+    # name: str
+    # display_name: str
+    # result_header: list
+    # support_languages: list
+    post_type = 'urlencoded'  # str
 
-	class RuntimeVariable:
-		# pid: str
-		# code: str
-		# language: str
-		# judge_detail: list
-		# judge_result: str
-		# judge_score: int
-		# judge_compile_message: str
+    class RuntimeVariable:
+        # pid: str
+        # code: str
+        # language: str
+        # judge_detail: list
+        # judge_result: str
+        # judge_score: int
+        # judge_compile_message: str
 
-		def __init__(self, pid: str, code: str, language: str):
-			self.pid = pid
-			self.code = code
-			self.language = language
-			self.judge_detail = None
-			self.judge_result = None
-			self.judge_score = None
-			self.judge_compile_message = None
+        def __init__(self, pid: str, code: str, language: str):
+            self.pid = pid
+            self.code = code
+            self.language = language
+            self.judge_detail = None
+            self.judge_result = None
+            self.judge_score = None
+            self.judge_compile_message = None
 
-		def __str__(self):
-			return json.dumps({
-				prop: value for prop, value in vars(self).items()
-					if not prop.startswith('__') })
+        def __str__(self):
+            return json.dumps({
+                prop: value for prop, value in vars(self).items()
+                if not prop.startswith('__')})
 
-		__repr__ = __str__
+        __repr__ = __str__
 
+    def __init__(self):
+        self.opener = None
 
-	def __init__(self):
-		self.opener = None
+    def set_status(self, message: str):
+        sublime.status_message(message)
 
-	def set_status(self, message: str):
-		sublime.status_message(message)
+    def create_opener(self):
+        cookie = http.cookiejar.CookieJar()
+        handler = urllib.request.HTTPCookieProcessor(cookie)
+        opener = urllib.request.build_opener(handler)
+        return opener, cookie
 
-	def create_opener(self):
-		cookie = http.cookiejar.CookieJar()
-		handler = urllib.request.HTTPCookieProcessor(cookie)
-		opener = urllib.request.build_opener(handler)
-		return opener, cookie
+    def get(self, url, headers, decode=True):
+        logger.debug('GET {}'.format(url))
+        req = urllib.request.Request(url=url, headers=headers)
+        resp = self.opener.open(req)
+        html = resp.read()
 
-	def get(self, url, headers, decode=True):
-		logger.debug('GET {}'.format(url))
-		req = urllib.request.Request(url=url, headers=headers)
-		resp = self.opener.open(req)
-		html = resp.read()
+        if decode:
+            try:
+                html = html.decode('utf-8')
+            except UnicodeDecodeError:
+                html = html.decode('gbk')
 
-		if decode:
-			try:
-				html = html.decode('utf-8')
-			except UnicodeDecodeError:
-				html = html.decode('gbk')
+        return html, resp
 
-		return html, resp
+    def post(self, url, data, headers, post_type=None):
+        logger.debug('POST {} with data {}'.format(url, data))
+        post_type = post_type or self.post_type
 
-	def post(self, url, data, headers, post_type=None):
-		logger.debug('POST {} with data {}'.format(url, data))
-		post_type = post_type or self.post_type
+        if isinstance(data, dict):
+            if post_type == 'urlencoded':
+                data = urllib.parse.urlencode(data).encode()
+            elif post_type == 'json':
+                headers['Content-Type'] = 'application/json'
+                data = json.dumps(data).encode()
+        elif isinstance(data, str):
+            data = data.encode()
 
-		if isinstance(data, dict):
-			if post_type == 'urlencoded':
-				data = urllib.parse.urlencode(data).encode()
-			elif post_type == 'json':
-				headers['Content-Type'] = 'application/json'
-				data = json.dumps(data).encode()
-		elif isinstance(data, str):
-			data = data.encode()
+        req = urllib.request.Request(url=url, data=data, headers=headers)
+        resp = None
+        try:
+            resp = self.opener.open(req)
+        except urllib.error.HTTPError as e:
+            resp = e
+        html = resp.read()
 
-		req = urllib.request.Request(url=url, data=data, headers=headers)
-		resp = None
-		try:
-			resp = self.opener.open(req)
-		except urllib.error.HTTPError as e:
-			resp = e
-		html = resp.read()
+        try:
+            html = html.decode('utf-8')
+        except UnicodeDecodeError:
+            html = html.decode('gbk')
 
-		try:
-			html = html.decode('utf-8')
-		except UnicodeDecodeError:
-			html = html.decode('gbk')
+        return html, resp
 
-		return html, resp
+    def init(self, config: dict):
+        raise NotImplementedError
 
-	def init(self, config: dict):
-		raise NotImplementedError
+    def check_login(self):
+        raise NotImplementedError
 
-	def check_login(self):
-		raise NotImplementedError
+    def login(self):
+        raise NotImplementedError
 
-	def login(self):
-		raise NotImplementedError
+    def submit(self, runtime: RuntimeVariable):
+        raise NotImplementedError
 
-	def submit(self, runtime: RuntimeVariable):
-		raise NotImplementedError
+    def load_result(self, runtime: RuntimeVariable):
+        raise NotImplementedError
 
-	def load_result(self, runtime: RuntimeVariable):
-		raise NotImplementedError
+    def work(self, pid, code, language):
+        if language not in self.support_languages:
+            raise OjException('Unsupported Language: {}'.format(language))
 
-	def work(self, pid, code, language):
-		if language not in self.support_languages:
-			raise OjException('Unsupported Language: {}'.format(language))
+        logger.debug('checking login status')
+        login_status = self.check_login()
+        logger.debug('checked login status: {}'.format(login_status))
 
-		logger.debug('checking login status')
-		login_status = self.check_login()
-		logger.debug('checked login status: {}'.format(login_status))
+        if not login_status:
+            logger.debug('call self.login()')
+            self.login()
 
-		if not login_status:
-			logger.debug('call self.login()')
-			self.login()
+        runtime = self.RuntimeVariable(pid, code, language)
+        logger.debug('Initialized runtime variable: {}'.format(runtime))
 
-		runtime = self.RuntimeVariable(pid, code, language)
-		logger.debug('Initialized runtime variable: {}'.format(runtime))
+        logger.debug('call self.submit(runtime)')
+        self.set_status('Submitting code to {}...'.format(self.display_name))
+        self.submit(runtime)
+        logger.debug('end self.submit(runtime)')
 
-		logger.debug('call self.submit(runtime)')
-		self.set_status('Submitting code to {}...'.format(self.display_name))
-		self.submit(runtime)
-		logger.debug('end self.submit(runtime)')
+        logger.debug('Runtime variable: {}'.format(runtime))
 
-		logger.debug('Runtime variable: {}'.format(runtime))
+        logger.debug('call self.load_result(runtime)')
+        self.load_result(runtime)
+        logger.debug('end self.load_result(runtime)')
 
-		logger.debug('call self.load_result(runtime)')
-		self.load_result(runtime)
-		logger.debug('end self.load_result(runtime)')
+        logger.debug('Runtime variable: {}'.format(runtime))
+        logger.debug('call print_result()')
+        printer.print_result(
+            self.result_header,
+            runtime.judge_detail,
+            runtime.judge_result,
+            runtime.judge_score,
+            runtime.judge_compile_message,
+            runtime.pid)
 
-		logger.debug('Runtime variable: {}'.format(runtime))
-		logger.debug('call print_result()')
-		printer.print_result(
-			self.result_header,
-			runtime.judge_detail,
-			runtime.judge_result,
-			runtime.judge_score,
-			runtime.judge_compile_message,
-			runtime.pid)
-
-	def work_wrapper(self, *args, **kwargs):
-		try:
-			self.work(*args, **kwargs)
-		except ExitScript:
-			logger.debug('caught ExitScript exception')
-		except OjException as e:
-			self.set_status(e.message)
-			logger.error(e.message)
-		except Exception as e:
-			logger.exception('Unexpected exception: {}'.format(str(e)))
+    def work_wrapper(self, *args, **kwargs):
+        try:
+            self.work(*args, **kwargs)
+        except ExitScript:
+            logger.debug('caught ExitScript exception')
+        except OjException as e:
+            self.set_status(e.message)
+            logger.error(e.message)
+        except Exception as e:
+            logger.exception('Unexpected exception: {}'.format(str(e)))
 
 
 def activate():
-	config_ = config.Config('SmojSubmit')
-	headers = config_.get('headers')
-	ojs_config = config_.get('oj')
-	for name, oj in ojs.items():
-		if name not in ojs_config:
-			logger.warning('no config for {}, skip'.format(oj.display_name))
-			continue
-		oj_config = ojs_config[name]
-		oj_config['headers'] = headers
-		logger.debug('activate {} with config {}'.format(oj.display_name, oj_config))
-		threading.Thread(target=lambda: oj.init(oj_config)).start()
+    config_ = config.Config('SmojSubmit')
+    headers = config_.get('headers')
+    ojs_config = config_.get('oj')
+    for name, oj in ojs.items():
+        if name not in ojs_config:
+            logger.warning('no config for {}, skip'.format(oj.display_name))
+            continue
+        oj_config = ojs_config[name]
+        oj_config['headers'] = headers
+        logger.debug('activate {} with config {}'.format(oj.display_name, oj_config))
+        threading.Thread(target=lambda: oj.init(oj_config)).start()
 
 
 def load_ojs():
-	ojs_path = os.path.dirname(os.path.abspath(__file__))
-	for file in os.listdir(ojs_path)[::-1]:
-		if not file.startswith('__') and file.endswith('.py'):
-			logger.debug('import {}'.format(file))
-			importlib.import_module('.' + file[:-3], __package__)
+    ojs_path = os.path.dirname(os.path.abspath(__file__))
+    for file in os.listdir(ojs_path)[::-1]:
+        if not file.startswith('__') and file.endswith('.py'):
+            logger.debug('import {}'.format(file))
+            importlib.import_module('.' + file[:-3], __package__)
 
 
 def submit(oj_name, pid, code, language):
-	if oj_name not in ojs:
-		sublime.status_message('No such oj: {}'.format(oj_name))
-		return
-	oj = ojs[oj_name]
-	oj.work_wrapper(pid, code, language)
+    if oj_name not in ojs:
+        sublime.status_message('No such oj: {}'.format(oj_name))
+        return
+    oj = ojs[oj_name]
+    oj.work_wrapper(pid, code, language)

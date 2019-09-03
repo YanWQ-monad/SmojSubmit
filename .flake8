@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 120
+
+# D100  Missing docstring in public module
+# D101  Missing docstring in public class
+# D102  Missing docstring in public method
+# D103  Missing docstring in public function
+# D104  Missing docstring in public package
+# D107  Missing docstring in __init__
+# W503  line break before binary operator
+# W504  line break after binary operator
+# W606  'async' and 'await' are reserved keywords starting with Python 3.7
+ignore = D100, D101, D102, D103, D104, D107, W503, W504, W606
+
+exclude =
+    tests/mox
+    .git
+    __pycache__
+
+per-file-ignores =
+	figlets/*:E501
+	main.py:E402
