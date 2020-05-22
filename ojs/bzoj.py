@@ -27,7 +27,7 @@ class BzojModule(OjModule):
     result_header = ['Result', 'Time', 'Memory']
     support_languages = ['C++', 'C', 'Java', 'Pascal', 'Python']
 
-    root_url = 'https://www.lydsy.com/JudgeOnline'
+    root_url = 'http://www.lydsy.com/JudgeOnline'
     login_url = root_url + '/login.php'
     submit_url = root_url + '/submit.php'
     result_url = root_url + '/status.php?{}'
